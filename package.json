@@ -1,0 +1,80 @@
+{
+  "name": "dsh-plugin-lightnovel",
+  "version": "1.0.0",
+  "description": "DeepSeek Harness native plugin: search light novels across sources, inspect volumes and download EPUB through the original bili_novel_packer Dart core.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xieqiong111/dsh-plugin-lightnovel.git"
+  },
+  "homepage": "https://github.com/xieqiong111/dsh-plugin-lightnovel#readme",
+  "bugs": {
+    "url": "https://github.com/xieqiong111/dsh-plugin-lightnovel/issues"
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "cordis",
+    "lightnovel",
+    "epub"
+  ],
+  "files": [
+    "dist",
+    "cordis.patch.yml",
+    "vendor/bili_novel_packer",
+    "!vendor/bili_novel_packer/.dart_tool",
+    "!vendor/bili_novel_packer/build",
+    "!vendor/bili_novel_packer/*.log",
+    "test/fixtures",
+    "scripts/prepare.mjs",
+    "docs",
+    "docker",
+    "Dockerfile",
+    "docker-compose.yml",
+    ".env.example",
+    "vitest.config.ts",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "engines": {
+    "node": ">=24.9.0",
+    "dsh": ">=0.2.2-rc.1 <0.3.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepare": "node scripts/prepare.mjs",
+    "test": "vitest run",
+    "test:unit": "vitest run test/unit",
+    "test:integration": "vitest run test/integration",
+    "test:dart": "node scripts/run-dart-tests.mjs"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.1.0",
+    "@deepseek-ai/dsh-tools": "^0.2.2-rc.1",
+    "@deepseek-ai/schemastery": "^3.18.1-rc.1"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.1.0",
+    "@deepseek-ai/dsh": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-tool-executor-native": "0.2.2-rc.1",
+    "@deepseek-ai/dsh-tools": "0.2.2-rc.1",
+    "@deepseek-ai/schemastery": "^3.18.1-rc.1",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0",
+    "vitest": "^3.2.0"
+  },
+  "dependencies": {
+    "cheerio": "^1.0.0",
+    "opencc-js": "^1.0.5"
+  }
+}

@@ -1,0 +1,53 @@
+[
+  {
+    "id": "fixture:star-voyage",
+    "bookId": "star-voyage",
+    "sourceUrl": "fixture://novel/star-voyage.html",
+    "title": "星海旅途",
+    "aliases": ["星海旅途", "星辰之旅", "Star Voyage", "星海之旅"],
+    "author": "測試作者",
+    "coverUrl": "fixture://image/cover.png",
+    "description": "一艘旧船、一张星图，以及横跨十二个星区的漫长旅途。离线测试用轻小说，含两卷共五章与内文插图。",
+    "tags": ["科幻", "冒险", "宇宙"],
+    "publisher": "离线测试文库",
+    "statusText": "已完结",
+    "status": "completed",
+    "lastUpdated": "2026-01-15",
+    "volumeCount": 2,
+    "indexedAt": "2026-01-15T00:00:00.000Z"
+  },
+  {
+    "id": "fixture:moon-teahouse",
+    "bookId": "moon-teahouse",
+    "sourceUrl": "fixture://novel/moon-teahouse.html",
+    "title": "月下的茶館",
+    "aliases": ["月下的茶馆", "Moonlit Teahouse"],
+    "author": "林小滿",
+    "coverUrl": null,
+    "description": "巷尾的茶館只在月圓之夜開門。繁體標題，用於驗證繁簡匹配。",
+    "tags": ["日常", "奇幻"],
+    "publisher": "离线测试文库",
+    "statusText": "連載中",
+    "status": "ongoing",
+    "lastUpdated": "2026-02-01",
+    "volumeCount": 1,
+    "indexedAt": "2026-02-01T00:00:00.000Z"
+  },
+  {
+    "id": "fixture:sword-of-dawn",
+    "bookId": "sword-of-dawn",
+    "sourceUrl": "fixture://novel/sword-of-dawn.html",
+    "title": "拂晓之剑",
+    "aliases": ["黎明之劍"],
+    "author": "測試作者",
+    "coverUrl": null,
+    "description": "王国边境的短篇剑与魔法故事。用于验证作者检索与多结果排序。",
+    "tags": ["奇幻", "战斗"],
+    "publisher": "离线测试文库",
+    "statusText": "已完结",
+    "status": "completed",
+    "lastUpdated": "2025-12-20",
+    "volumeCount": 1,
+    "indexedAt": "2025-12-20T00:00:00.000Z"
+  }
+]

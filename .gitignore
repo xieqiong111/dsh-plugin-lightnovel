@@ -1,0 +1,10 @@
+node_modules/
+.test-output/
+.pub-cache/
+**/.dart_tool/
+vendor/bili_novel_packer/build/
+.env
+data/
+*.log
+.DS_Store
+*.tgz

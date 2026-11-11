@@ -1,0 +1,12 @@
+{
+  "id": "star-voyage",
+  "url": "fixture://novel/star-voyage.html",
+  "title": "星海旅途",
+  "alias": "Star Voyage",
+  "author": "測試作者",
+  "status": "已完结",
+  "coverUrl": "fixture://image/cover.png",
+  "tags": ["科幻", "冒险", "宇宙"],
+  "publisher": "离线测试文库",
+  "description": "一艘旧船、一张星图，以及横跨十二个星区的漫长旅途。"
+}

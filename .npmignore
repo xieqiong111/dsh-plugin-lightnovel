@@ -1,0 +1,12 @@
+# Local build artifacts must never ship in the npm tarball.
+vendor/bili_novel_packer/.dart_tool/
+vendor/bili_novel_packer/build/
+vendor/bili_novel_packer/*.log
+vendor/bili_novel_packer/pubspec.lock
+.test-output/
+.pub-cache/
+data/
+.env
+*.log
+*.tgz
+.DS_Store

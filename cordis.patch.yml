@@ -1,0 +1,20 @@
+# Composition layer contributed by dsh-plugin-lightnovel.
+# `name` is the npm package specifier so Node resolution finds the installed
+# bundle. Every deployment-specific value is a config field; users override
+# this row in their profile's cordis.patch.yml.
+- insert:
+    - id: lightnovel
+      name: dsh-plugin-lightnovel
+      config:
+        dataDir: !!js process.env.LN_DATA_DIR ?? ''
+        libraryDir: !!js process.env.LN_LIBRARY_DIR ?? ''
+        dartBinary: !!js process.env.LN_DART_BINARY ?? ''
+        dartProjectDir: !!js process.env.LN_DART_PROJECT_DIR ?? ''
+        fixturesDir: !!js process.env.LN_FIXTURES_DIR ?? ''
+        enabledSources: !!js (process.env.LN_ENABLED_SOURCES ?? 'bilinovel,fixture').split(',').map(s => s.trim()).filter(Boolean)
+        requestIntervalMs: !!js Number(process.env.LN_REQUEST_INTERVAL_MS ?? 4000)
+        maxConcurrentDownloads: !!js Number(process.env.LN_MAX_CONCURRENT_DOWNLOADS ?? 1)
+        maxRetries: !!js Number(process.env.LN_MAX_RETRIES ?? 2)
+        respectRobots: !!js (process.env.LN_RESPECT_ROBOTS ?? 'true') !== 'false'
+        offlineOnly: !!js (process.env.LN_OFFLINE_ONLY ?? 'false') === 'true'
+        logLevel: !!js process.env.LN_LOG_LEVEL ?? 'info'

@@ -1,0 +1,19 @@
+[
+  {
+    "name": "第一卷 启程",
+    "cover": "fixture://image/cover.png",
+    "chapters": [
+      { "name": "序章 旧船", "file": "chapters/vol1-prologue.html" },
+      { "name": "第一章 星港", "file": "chapters/vol1-ch1.html" },
+      { "name": "第二章 航图", "file": "chapters/vol1-ch2.html" }
+    ]
+  },
+  {
+    "name": "第二卷 深空",
+    "cover": null,
+    "chapters": [
+      { "name": "第三章 沉默的信标", "file": "chapters/vol2-ch1.html" },
+      { "name": "终章 归途", "file": "chapters/vol2-ch2.html" }
+    ]
+  }
+]

@@ -1,0 +1,13 @@
+node_modules
+.git
+.test-output
+.pub-cache
+**/.dart_tool
+**/pubspec.lock
+# macOS-built Dart binary; the image compiles its own linux/amd64 one.
+vendor/bili_novel_packer/build
+dist/**/*.map
+*.log
+.env
+data
+.DS_Store

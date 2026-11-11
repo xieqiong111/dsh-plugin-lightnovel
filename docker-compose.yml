@@ -1,0 +1,116 @@
+# 飞牛 NAS (FnOS) / any Linux x86-64 Docker host.
+#
+# Quick start:
+#   1. cp .env.example .env      # adjust LN_DATA_DIR / paths / LLM key
+#   2. docker compose up -d --build
+#   3. docker compose logs -f    # shows the composed DSH config (verification)
+#   4. docker compose exec lightnovel dsh --profile nas --dump-config
+#
+# To actually run an agent turn, override the command, e.g.:
+#   docker compose run --rm lightnovel --profile nas headless "搜索并下载《星海旅途》第一卷"
+services:
+  lightnovel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Build containers use the host network so the Dart SDK / npm downloads
+      # take the same working route as the host instead of a NAT'd bridge that
+      # may be intercepted by a transparent proxy.
+      network: host
+      platforms:
+        - linux/amd64
+      args:
+        DART_VERSION: "3.13.7"
+        # Mainland-China friendly pub mirror; set to https://pub.dev if preferred.
+        PUB_HOSTED_URL: "${PUB_HOSTED_URL:-https://pub.flutter-io.cn}"
+        # Use the locally cached mirror images by default; override if needed.
+        NODE_BASE: "${NODE_BASE:-docker.m.daocloud.io/library/node:24-bookworm-slim}"
+        DEBIAN_BASE: "${DEBIAN_BASE:-docker.m.daocloud.io/library/debian:bookworm-slim}"
+    image: dsh-plugin-lightnovel:1.0.0
+    platform: linux/amd64
+    container_name: dsh-lightnovel
+    # The default command is a one-shot config self-check; a restart policy
+    # would loop forever. Set `restart: unless-stopped` only when switching to
+    # a long-running command (web / tui).
+    restart: "no"
+
+    # Runs as the NAS user. Set LN_UID/LN_GID to the owner of your shared folder
+    # (飞牛 NAS: usually 1000:1000) so EPUBs are readable from SMB.
+    user: "${LN_UID:-1000}:${LN_GID:-1000}"
+
+    env_file:
+      - .env
+    environment:
+      DSH_HOME: /data/dsh-home
+      LN_DATA_DIR: /data
+      LN_LIBRARY_DIR: /data/library
+      LN_FIXTURES_DIR: /opt/lightnovel/test/fixtures
+      LN_DART_BINARY: /opt/bnp/bnp_headless
+      LN_DART_PROJECT_DIR: /opt/lightnovel/vendor/bili_novel_packer
+      LN_ENABLED_SOURCES: "${LN_ENABLED_SOURCES:-bilinovel,fixture}"
+      LN_OFFLINE_ONLY: "${LN_OFFLINE_ONLY:-false}"
+      LN_RESPECT_ROBOTS: "${LN_RESPECT_ROBOTS:-true}"
+      LN_REQUEST_INTERVAL_MS: "${LN_REQUEST_INTERVAL_MS:-4000}"
+      LN_MAX_CONCURRENT_DOWNLOADS: "${LN_MAX_CONCURRENT_DOWNLOADS:-1}"
+      LN_MAX_RETRIES: "${LN_MAX_RETRIES:-2}"
+      LN_LOG_LEVEL: "${LN_LOG_LEVEL:-info}"
+
+    volumes:
+      # >>> Change the left side to your 飞牛 NAS shared folder path <<<
+      - "${LN_DATA_DIR:-./data}:/data"
+      # Optional: mount your own fixture books / Dart project without rebuilding.
+      # - ./my-fixtures:/opt/lightnovel/test/fixtures:ro
+
+    ports:
+      # Only needed when booting the DSH web app (command: ["--profile","nas","web"]).
+      - "${LN_WEB_PORT:-3080}:3080"
+
+    # Default command dumps the composed profile config: proves the plugin
+    # bundle is installed and loadable without any LLM credential.
+    command: ["--profile", "nas", "--dump-config"]
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "import('@deepseek-ai/dsh-tools').then(()=>process.exit(0)).catch(()=>process.exit(1))"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    # The Dart core needs to write EPUBs under /data only; /tmp is used for ZIP work.
+    tmpfs:
+      - /tmp:size=256m,mode=1777
+
+  # Real post-deploy verification: boots a genuine DSH runtime in the container
+  # and invokes all six tools end-to-end against the offline fixture + the
+  # linux/amd64 Dart core. Run with:
+  #   docker compose --profile verify run --rm verify
+  verify:
+    image: dsh-plugin-lightnovel:1.0.0
+    platform: linux/amd64
+    profiles: ["verify"]
+    user: "${LN_UID:-1000}:${LN_GID:-1000}"
+    env_file:
+      - .env
+    environment:
+      DSH_HOME: /data/dsh-home
+      LN_DATA_DIR: /data
+      LN_LIBRARY_DIR: /data/library
+      LN_FIXTURES_DIR: /opt/lightnovel/test/fixtures
+      LN_DART_BINARY: /opt/bnp/bnp_headless
+      LN_DART_PROJECT_DIR: /opt/lightnovel/vendor/bili_novel_packer
+    volumes:
+      - "${LN_DATA_DIR:-./data}:/data"
+    # Bypass ln-entrypoint.sh (which always execs the dsh CLI).
+    entrypoint: ["node", "/opt/lightnovel/scripts/verify-nas.mjs"]
+    restart: "no"
+    tmpfs:
+      - /tmp:size=256m,mode=1777
