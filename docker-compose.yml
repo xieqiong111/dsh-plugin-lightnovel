@@ -21,6 +21,8 @@ services:
         - linux/amd64
       args:
         DART_VERSION: "3.13.7"
+        # Force the faster IP family on dual-stack hosts, e.g. DART_CURL_OPTS=-6
+        DART_CURL_OPTS: "${DART_CURL_OPTS:-}"
         # Mainland-China friendly pub mirror; set to https://pub.dev if preferred.
         PUB_HOSTED_URL: "${PUB_HOSTED_URL:-https://pub.flutter-io.cn}"
         # Use the locally cached mirror images by default; override if needed.

@@ -1,0 +1,4 @@
+# Optional pre-seeded Dart SDK for slow or air-gapped Docker hosts.
+# Drop `dartsdk-linux-x64-release.zip` (matching DART_VERSION) in this folder
+# before `docker compose build`; the Dockerfile will use it instead of downloading.
+# The archive is git-ignored and must not be committed or published to npm.

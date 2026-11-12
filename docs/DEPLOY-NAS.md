@@ -68,13 +68,34 @@ docker compose logs -f
 docker compose --profile verify run --rm verify
 ```
 
-预期输出 16 项 `PASS`，末行 `RESULT 16/16 checks passed on linux/x64`。
+预期输出 13 项 `PASS`，末行 `RESULT 13/13 checks passed on linux/x64`。
 
 ### 中国大陆网络 / 代理注意事项
 
 - 若本机 DNS 被透明代理劫持，域名可能解析到 `198.18.x.x`（RFC 2544 保留段）的 fake-IP，表现为「所有端口都能连上但没有任何数据」。用 `dig @223.5.5.5 A <域名>` 取真实地址；若只有 IPv6 可达，直接用 `ssh -6 -i <key> user@<IPv6字面量>` 连接（不要走系统 HTTP 代理）。
 - 构建默认使用已缓存的国内镜像源，可在 `.env` 用 `NODE_BASE` / `DEBIAN_BASE` / `PUB_HOSTED_URL` 覆盖。
-- Dart SDK 从 `storage.googleapis.com` 下载；不可达时改用镜像并调整 `Dockerfile` 中的 URL。
+- Dart SDK 从 `storage.googleapis.com` 下载（约 228 MB），构建已使用 host 网络 + `--noproxy '*'` 直连，并把超时放宽到 3600 秒。双栈主机上 IPv4 / IPv6 的速率可能相差近 10 倍，先测速再决定：
+
+  ```bash
+  URL=https://storage.googleapis.com/dart-archive/channels/stable/release/3.13.7/sdk/dartsdk-linux-x64-release.zip
+  curl --noproxy '*' -4 -r 0-10485759 -o /dev/null -w '%{speed_download} B/s\n' "$URL"
+  curl --noproxy '*' -6 -r 0-10485759 -o /dev/null -w '%{speed_download} B/s\n' "$URL"
+  ```
+
+  在 `.env` 设置 `DART_CURL_OPTS=-6`（或 `-4`）即可让构建强制走较快的路径；例如某次飞牛 NAS 实测 IPv4 约 180 KB/s、IPv6 约 1.1 MB/s。
+
+- 如果构建容器内的**单条连接**仍被限速（宿主机直连很快、容器内却只有几十 KB/s，常见于双栈/CDN 边缘节点差异），可在宿主机预下载 SDK 并放进构建上下文，构建时会自动改用本地文件、完全跳过容器内下载：
+
+  ```bash
+  mkdir -p build-assets
+  curl --noproxy '*' -6 -fsSL --retry 3 \
+    -o build-assets/dartsdk-linux-x64-release.zip \
+    https://storage.googleapis.com/dart-archive/channels/stable/release/3.13.7/sdk/dartsdk-linux-x64-release.zip
+  unzip -tq build-assets/dartsdk-linux-x64-release.zip   # 校验完整性
+  docker compose build
+  ```
+
+  也可分段并行下载后按序 `cat part.* > dartsdk-linux-x64-release.zip` 拼接。该 zip 已被 `.gitignore` 排除，不要提交仓库或打进 npm 包。
 
 `command` 默认为 `["--profile","nas","--dump-config"]`，容器会打印组合后的 DSH 配置后退出 Compose 的常规前台日志；这是**安装自检**：
 
@@ -166,3 +187,6 @@ docker compose down && docker compose up -d --build  # 升级
 | `robots.txt disallows ...` | 站点规则禁止；请尊重该规则，不要关闭 `respectRobots` 绕过 |
 | EPUB `integrity: failed` | 查看 `novel_tasks get` 的 `integrityError` 与日志；可 `retry` 任务 |
 | 容器启动即退出 | 默认 `--dump-config` 是自检命令，属正常；常驻请改 `command` |
+| `failed to create network ... all predefined address pools have been fully subnetted` | NAS 上已有大量 Docker 网络，默认地址池用尽。先手工建一个显式网段的用户自定义网络，再用 `docker-compose.override.yml` 复用它（不要复用内置 `bridge`，Compose 会给它加 network-scoped alias 而报错）：<br>`docker network create --driver bridge --subnet 10.99.77.0/24 --gateway 10.99.77.1 dsh-lightnovel-net`<br>然后写入 `docker-compose.override.yml`：`networks: { default: { name: dsh-lightnovel-net, external: true } }` |
+| 构建卡在 Dart SDK 下载 / `curl: (28) Operation timed out` | 见第 3 节的 IP 族测速与 `build-assets/` 预下载方案 |
+| `dart compile exe` 报 `PathNotFoundException: /opt/bnp/bnp_headless` | `dart compile exe` 不会自动创建 `-o` 的父目录；Dockerfile 已加 `mkdir -p /opt/bnp`，自定义构建时请保留 |

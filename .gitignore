@@ -8,3 +8,6 @@ data/
 *.log
 .DS_Store
 *.tgz
+# Pre-seeded Dart SDK archive for slow/offline builds (never commit the binary).
+build-assets/*.zip
+build-assets/part.*
