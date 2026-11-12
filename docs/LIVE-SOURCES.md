@@ -158,12 +158,12 @@ docker run --rm --network dsh-lightnovel-net --user "$(id -u):$(id -g)" \
 落盘证据（NAS 宿主机，最终隔离回归）：
 
 ```text
-/home/chatgpt/dsh-plugin-lightnovel-data/live-verify-final/library/安达与岛村/安达与岛村 1.epub        1988804 B
-/home/chatgpt/dsh-plugin-lightnovel-data/live-verify-final/library/安达与岛村/安达与岛村 1.epub.sha256
-/home/chatgpt/dsh-plugin-lightnovel-data/live-verify-final/library/index.json                      entries=1, integrity: ok
-/home/chatgpt/dsh-plugin-lightnovel-data/live-verify-final/logs/bili_novel.log                   6957 B  ← 修复后日志固定在此
-/home/chatgpt/dsh-plugin-lightnovel-data/live-verify-final/tasks/task_c3fefd9124704619.json
-/home/chatgpt/dsh-ln-live-verify-final.log                                                      最终 19/19 结果归档
+$LN_DATA_DIR/live-verify-final/library/安达与岛村/安达与岛村 1.epub             1988804 B
+$LN_DATA_DIR/live-verify-final/library/安达与岛村/安达与岛村 1.epub.sha256
+$LN_DATA_DIR/live-verify-final/library/index.json                             entries=1, integrity: ok
+$LN_DATA_DIR/live-verify-final/logs/bili_novel.log                              6957 B  ← 修复后日志固定在此
+$LN_DATA_DIR/live-verify-final/tasks/task_c3fefd9124704619.json
+$LN_DATA_DIR/dsh-ln-live-verify-final.log                                       最终 19/19 结果归档
 ```
 
 > 首轮运行时脚本尚未显式设置 `libraryDir`，镜像 ENV `LN_LIBRARY_DIR=/data/library`
