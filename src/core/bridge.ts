@@ -39,6 +39,8 @@ interface Runner {
   command: string
   prefix: string[]
   label: string
+  /** AOT binaries run from plugin-owned writable data; `dart run` needs the project root. */
+  cwd: string
 }
 
 /** Spawns the *original* Dart core through its new headless entry point. */
@@ -58,11 +60,16 @@ export class DartBridge {
   }
 
   private async resolveRunner(): Promise<Runner | null> {
+    // The upstream Dart logger writes a relative `bili_novel.log` on the first
+    // real HTTP request. Running an AOT binary with cwd = the read-only vendor
+    // directory crashes with EACCES for non-root users, so AOT runs from the
+    // plugin-owned data dir and the log file is pinned to an absolute path.
+    const writableCwd = this.config.dataDir
     const explicit = this.config.dartBinary || process.env.LN_DART_BINARY
-    if (explicit) return { command: explicit, prefix: [], label: explicit }
+    if (explicit) return { command: explicit, prefix: [], label: explicit, cwd: writableCwd }
     const localBuild = path.join(this.config.dartProjectDir, 'build', 'bnp_headless')
     for (const candidate of ['/opt/bnp/bnp_headless', localBuild]) {
-      if (await existsExecutable(candidate)) return { command: candidate, prefix: [], label: candidate }
+      if (await existsExecutable(candidate)) return { command: candidate, prefix: [], label: candidate, cwd: writableCwd }
     }
     const headlessScript = path.join(this.config.dartProjectDir, 'bin', 'headless.dart')
     if (!(await exists(headlessScript))) return null
@@ -72,6 +79,7 @@ export class DartBridge {
       command: dart,
       prefix: ['run', headlessScript],
       label: `${dart} run ${headlessScript}`,
+      cwd: this.config.dartProjectDir,
     }
   }
 
@@ -81,6 +89,7 @@ export class DartBridge {
       throw new DartError('DART_UNAVAILABLE', (await this.probe()).reason ?? 'Dart core unavailable', true)
     }
     if (request.outputDir) await mkdir(request.outputDir, { recursive: true })
+    await mkdir(this.config.logsDir, { recursive: true })
 
     const args = [...runner.prefix, request.command,
       '--source', request.sourceId,
@@ -105,8 +114,13 @@ export class DartBridge {
     return new Promise<DartResult<T>>((resolve, reject) => {
       const child = spawn(runner.command, args, {
         stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env },
-        cwd: this.config.dartProjectDir,
+        env: {
+          ...process.env,
+          // Absolute path: survives `Directory.current = outputDir` in pack mode,
+          // so upstream logs never land in the read-only vendor tree or the EPUB library.
+          BNP_LOG_FILE: path.join(this.config.logsDir, 'bili_novel.log'),
+        },
+        cwd: runner.cwd,
       })
       const events: BridgeEvent[] = []
       let stdoutBuffer = ''

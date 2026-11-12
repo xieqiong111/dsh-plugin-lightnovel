@@ -2,7 +2,11 @@ import 'dart:io';
 
 import 'package:logger/logger.dart';
 
-const String logFilePath = "bili_novel.log";
+/// Additive headless hook: when spawned by dsh-plugin-lightnovel the plugin
+/// owns a writable logs directory and passes its absolute path here. The
+/// original interactive CLI keeps writing `bili_novel.log` in its cwd.
+final String logFilePath =
+    Platform.environment['BNP_LOG_FILE'] ?? "bili_novel.log";
 
 final File loggerFile = File(logFilePath);
 

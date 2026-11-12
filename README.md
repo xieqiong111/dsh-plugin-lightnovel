@@ -105,8 +105,20 @@ dsh --profile myprofile --dump-config | grep -A 20 "== dsh-plugin-lightnovel"
 | `userAgent` | — | 含插件标识 | 礼貌 UA |
 | `logLevel` | `LN_LOG_LEVEL` | `info` | `debug`/`info`/`warn`/`error` |
 | `extraTraditionalMap` | — | `""` | 额外繁简对，如 `臺台,裡里` |
+| — | `LN_BILINOVEL_SEARCH_URL` | 不设置 | 显式 opt-in 的在线搜索端点模板（`{q}` 为关键词）；默认不发起 live 搜索，见下文 |
 
 完整说明见 [`docs/CONFIG.md`](./docs/CONFIG.md)。
+
+### 在线书源与真实抓取验证
+
+`bilinovel` 的详情、目录、正文、插图与 EPUB 下载均走**公开页面真实抓取**（由内置 Dart
+核心完成），默认域名为实测可达的 `www.bilinovel.net`。但该站点没有 robots 允许的公开
+GET 关键词搜索端点，因此 live 搜索默认不请求、不伪造命中，`novel_search` 会把
+`bilinovel` 记入 `degradedSources`；可直接把公开详情 URL 交给 `novel_details` /
+`novel_volumes` / `novel_download`。`wenku8` 为受限书源，默认禁用且不绕过登录/付费/Cloudflare。
+
+可复现的真实网络验证脚本为 [`scripts/verify-live.mjs`](./scripts/verify-live.mjs)，
+完整预检证据、合规边界与修复记录见 [`docs/LIVE-SOURCES.md`](./docs/LIVE-SOURCES.md)。
 
 ---
 
@@ -128,10 +140,10 @@ docker compose exec lightnovel dsh --profile nas --dump-config
 ```bash
 npm install
 npm run build            # TypeScript -> dist/
-npm run test:unit        # 60 个单元测试
+npm run test:unit        # 71 个单元测试（含在线书源、Dart bridge、书库去重回归）
 npm run test:integration # 真实 DSH 运行时加载 + 六工具调用 + CLI 组合
 npm run test:dart        # 编译 Dart 核心并端到端生成 EPUB
-npm test                 # 全部 vitest
+npm test                 # 全部 88 项 vitest
 ```
 
 `test:integration` **不是模拟**：它启动真实的 Cordis `Context`，挂载真实的 `ToolsService` / `SystemPrompt` / NativeToolExecutor，把 `dist/index.js` 通过 `ctx.plugin()` 载入，再经 `ctx.tools.execute()` 派发调用，走完完整闭环并校验生成的 EPUB。另一组测试调用真实 `dsh --dump-config` 验证 bundle 组合层。

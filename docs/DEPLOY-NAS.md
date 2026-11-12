@@ -35,9 +35,13 @@ cp .env.example .env
 
 ```dotenv
 LN_DATA_DIR=/vol1/1000/lightnovel
-LN_UID=1000
-LN_GID=1000
+LN_UID=1001
+LN_GID=1001
 ```
+
+> **`LN_UID` / `LN_GID` 必须用宿主机真实值**：先执行 `id -u` / `id -g`。
+> 本次部署的飞牛 NAS 上 `chatgpt` 实际是 `1001:1001`（不是常见的 1000）。
+> 写错会导致插件 `mkdir` 报 `EACCES`，以及 Dart 核心无法写日志（见排障表）。
 
 无外网 / 不想访问第三方站点时：
 
@@ -69,6 +73,8 @@ docker compose --profile verify run --rm verify
 ```
 
 预期输出 13 项 `PASS`，末行 `RESULT 13/13 checks passed on linux/x64`。
+
+验证是**隔离**的：脚本显式把 `dataDir` / `libraryDir` 固定在 `<LN_DATA_DIR>/nas-verify/` 下，不读取也不覆盖运营者真实的 `/data/library` 书库（镜像 ENV `LN_LIBRARY_DIR` 不会生效）。在线抓取验证脚本同理，库目录固定在 `<LN_LIVE_DATA_DIR>/library`。
 
 ### 中国大陆网络 / 代理注意事项
 
@@ -160,7 +166,21 @@ volumes:
 | `chapters/*.html` | 章节正文片段 |
 | `images/*` | 封面与内文插图（PNG/JPEG/GIF） |
 
-在线书源的检索 URL 可用 `LN_BILINOVEL_SEARCH_URL` / `LN_WENKU8_SEARCH_URL` 覆盖模板（`{q}` 为关键词占位符）。
+在线书源的可达性、robots 规则与真实抓取验证详见 [`docs/LIVE-SOURCES.md`](./LIVE-SOURCES.md)。
+重点：实测 `www.bilinovel.com` 不可达，插件默认使用 `www.bilinovel.net`；该站点没有
+robots 允许的公开 GET 关键词搜索端点，因此 `bilinovel` 的 live 搜索默认**不发起请求**
+（`degradedSources` 中如实标注），只有显式设置 `LN_BILINOVEL_SEARCH_URL` 时才抓取。
+`LN_WENKU8_SEARCH_URL` 仅在受限书源被显式启用时生效（默认禁用，且实测 Cloudflare 403）。
+
+复现真实在线闭环（只用公开页面、遵守 robots 与限速、默认仅下载 1 卷）：
+
+```bash
+docker run --rm --network dsh-lightnovel-net --user "$(id -u):$(id -g)" \
+  -v "$LN_DATA_DIR:/data" -e LN_LIVE_DATA_DIR=/data/live-verify \
+  --entrypoint node dsh-plugin-lightnovel:1.0.0 \
+  /opt/lightnovel/scripts/verify-live.mjs
+# 只读预检（不下载）：额外加 -e LN_LIVE_ALLOW_DOWNLOAD=0
+```
 
 ## 7. 运维
 
@@ -172,8 +192,9 @@ docker compose down && docker compose up -d --build  # 升级
 ```
 
 - **备份**：只需备份宿主机 `/vol1/1000/lightnovel`（含 library + 任务状态）。
-- **权限**：若 SMB 中看不到 EPUB，检查 `LN_UID`/`LN_GID` 是否与共享文件夹所有者一致。
+- **权限**：若 SMB 中看不到 EPUB 或出现 `EACCES`，用 `id -u` / `id -g` 核对 `LN_UID`/`LN_GID` 与共享文件夹所有者。
 - **限速**：默认同主机 4 秒一次，请勿调低；`LN_RESPECT_ROBOTS` 保持 `true`。
+- **Dart 日志**：上游核心日志固定在 `<dataDir>/logs/bili_novel.log`（由 bridge 注入的 `BNP_LOG_FILE` 绝对路径指定），不会污染 vendor 目录或 EPUB 书库。
 - **完整性**：把 `index.json` 与 `.sha256` 一起备份，可用 `sha256sum -c` 校验。
 
 ## 8. 排障
@@ -182,10 +203,14 @@ docker compose down && docker compose up -d --build  # 升级
 |------|-------------|
 | `novel_tasks.status` 显示 `dart.available: false` | `LN_DART_BINARY` 路径错误；镜像内应为 `/opt/bnp/bnp_headless` |
 | 下载任务 `DART_UNAVAILABLE` | 同上，或 Dart SDK 未安装 |
+| `EACCES: permission denied, mkdir '/data/...'` | `LN_UID`/`LN_GID` 与宿主机目录 owner 不一致；用 `id -u` / `id -g` 校正后重建容器 |
+| `DART_EXIT ... exited with code 255` / `PathAccessException: Cannot open file, path = 'bili_novel.log'` | 旧版本把 Dart 进程 cwd 设为只读 vendor 目录，真实网络请求触发上游日志写文件即崩溃（离线 fixture 不会触发）。升级到含 `BNP_LOG_FILE` 修复的镜像；确保 `<dataDir>/logs` 可写 |
 | `SOURCE_DISABLED` | 书源未写入 `LN_ENABLED_SOURCES`，或受限书源被策略禁用 |
+| `novel_search` 无在线结果且 `degradedSources` 含 `bilinovel` | 符合预期：目标站点没有 robots 允许的公开 GET 关键词搜索端点，插件不伪造命中。可直接用公开详情 URL 调 `novel_details` / `novel_download`，或显式配置 `LN_BILINOVEL_SEARCH_URL` |
 | `RESTRICTED_SOURCE` | 目标书源可能需要登录；插件按设计拒绝，不提供凭据 |
 | `robots.txt disallows ...` | 站点规则禁止；请尊重该规则，不要关闭 `respectRobots` 绕过 |
 | EPUB `integrity: failed` | 查看 `novel_tasks get` 的 `integrityError` 与日志；可 `retry` 任务 |
+| `novel_library {action:"verify"}` 全库复验失败，但 EPUB 文件本身完好 | 旧版本重复下载同一卷会留下指向同一路径、sha256 已过期的重复索引条目。升级到含书库去重修复的版本后，`load()` 会自动去重并写 `deduplicated_index` 日志；也可 `novel_library {action:"remove", id:"<旧条目id>"}` 手工清理 |
 | 容器启动即退出 | 默认 `--dump-config` 是自检命令，属正常；常驻请改 `command` |
 | `failed to create network ... all predefined address pools have been fully subnetted` | NAS 上已有大量 Docker 网络，默认地址池用尽。先手工建一个显式网段的用户自定义网络，再用 `docker-compose.override.yml` 复用它（不要复用内置 `bridge`，Compose 会给它加 network-scoped alias 而报错）：<br>`docker network create --driver bridge --subnet 10.99.77.0/24 --gateway 10.99.77.1 dsh-lightnovel-net`<br>然后写入 `docker-compose.override.yml`：`networks: { default: { name: dsh-lightnovel-net, external: true } }` |
 | 构建卡在 Dart SDK 下载 / `curl: (28) Operation timed out` | 见第 3 节的 IP 族测速与 `build-assets/` 预下载方案 |

@@ -23,9 +23,30 @@ export class Library {
             return;
         this.loaded = true;
         const file = await readJson(this.indexPath, { version: 1, entries: [] });
+        // One physical EPUB path maps to exactly one index entry. Older builds of
+        // add() appended a second entry when the same volume was downloaded again;
+        // the file was overwritten in place, so the stale entry kept a sha256 that
+        // no longer matches and verify() reported a false corruption forever.
+        // Heal such indexes on load by keeping the newest entry for each path.
+        const byPath = new Map();
+        let duplicates = 0;
         for (const entry of file.entries ?? []) {
-            if (entry && typeof entry.id === 'string')
-                this.entries.set(entry.id, entry);
+            if (!entry || typeof entry.id !== 'string')
+                continue;
+            const key = typeof entry.relativePath === 'string' ? entry.relativePath : entry.id;
+            const previous = byPath.get(key);
+            if (!previous) {
+                byPath.set(key, entry);
+                continue;
+            }
+            duplicates++;
+            if ((entry.createdAt ?? '') >= (previous.createdAt ?? ''))
+                byPath.set(key, entry);
+        }
+        this.entries = new Map([...byPath.values()].map((entry) => [entry.id, entry]));
+        if (duplicates > 0) {
+            this.logger.warn('library', 'deduplicated_index', { removed: duplicates, remaining: this.entries.size });
+            await this.persist();
         }
     }
     list(options = {}) {
@@ -75,7 +96,20 @@ export class Library {
             taskId: input.taskId,
             integrity: integrity.ok ? 'ok' : 'failed',
         };
+        // Re-downloading the same volume overwrites the EPUB in place. Replace any
+        // older entry for that exact path so its stale sha256 can never make a
+        // later verify() fail with a false corruption report.
+        let replaced = 0;
+        for (const [id, existing] of this.entries) {
+            if (existing.relativePath === relativePath) {
+                this.entries.delete(id);
+                replaced++;
+            }
+        }
         this.entries.set(entry.id, entry);
+        if (replaced > 0) {
+            this.logger.info('library', 'replaced', { relativePath, replaced });
+        }
         await this.persist();
         this.logger.info('library', 'added', {
             id: entry.id, relativePath, integrity: entry.integrity, problems: integrity.problems,

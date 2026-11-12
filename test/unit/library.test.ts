@@ -18,14 +18,14 @@ function crc32(buf: Buffer): number {
   return ~c >>> 0
 }
 
-function makeEpub(): Buffer {
+function makeEpub(text = 'content'): Buffer {
   const names = ['mimetype', 'META-INF/container.xml', 'OEBPS/content.opf', 'OEBPS/toc.ncx', 'OEBPS/chapter000001.xhtml']
   const contents = [
     Buffer.from('application/epub+zip'),
     Buffer.from('<container><rootfiles><rootfile full-path="OEBPS/content.opf"/></rootfiles></container>'),
     Buffer.from('<package><manifest><item id="c" href="chapter000001.xhtml" media-type="application/xhtml+xml"/></manifest><spine/></package>'),
     Buffer.from('<ncx/>'),
-    Buffer.from('<html><body><p>content</p></body></html>'),
+    Buffer.from(`<html><body><p>${text}</p></body></html>`),
   ]
   const locals: Buffer[] = [], centrals: Buffer[] = []
   let offset = 0
@@ -106,6 +106,56 @@ describe('Library (requirement #9)', () => {
     expect(await lib.remove(entry!.id)).toBe(true)
     expect(lib.stats().total).toBe(0)
     expect(await lib.remove(entry!.id)).toBe(false)
+  })
+
+  it('re-downloading the same volume replaces its index entry instead of duplicating it', async () => {
+    const lib = new Library(dir, logger)
+    await lib.load()
+    const source = await seedEpub()
+    const input = {
+      artifact: { path: source, volumeNames: ['卷一'], chapters: 1, bytes: 0, sha256: null, integrity: 'pending' as const, integrityError: null },
+      title: '书', author: '作者', sourceId: 'fixture', bookId: 'fixture:3', taskId: 'task_3',
+    }
+    const first = await lib.add(input)
+    await writeFile(source, makeEpub('revised edition'))
+    const second = await lib.add({ ...input, taskId: 'task_4' })
+
+    expect(second!.relativePath).toBe(first!.relativePath)
+    expect(second!.sha256).not.toBe(first!.sha256)
+    expect(lib.stats().total).toBe(1)
+    expect((await lib.verify())[0]!.ok).toBe(true)
+
+    const reloaded = new Library(dir, logger)
+    await reloaded.load()
+    expect(reloaded.stats().total).toBe(1)
+    expect(reloaded.get(second!.id)!.sha256).toBe(second!.sha256)
+  })
+
+  it('heals a legacy index that contains duplicate entries for one EPUB path', async () => {
+    const lib = new Library(dir, logger)
+    await lib.load()
+    const source = await seedEpub()
+    const first = await lib.add({
+      artifact: { path: source, volumeNames: ['卷一'], chapters: 1, bytes: 0, sha256: null, integrity: 'pending', integrityError: null },
+      title: '书', author: '作者', sourceId: 'fixture', bookId: 'fixture:3', taskId: 'task_3',
+    })
+    // Simulate the pre-fix index: an older entry pointing at the same file,
+    // but carrying the sha256 of a version that has since been overwritten.
+    const current = await readFile(path.join(dir, 'index.json'), 'utf8')
+    const file = JSON.parse(current) as { version: number; entries: Record<string, unknown>[] }
+    file.entries.unshift({
+      ...file.entries[0]!,
+      id: 'lib_stale0000000001',
+      sha256: 'a'.repeat(64),
+      createdAt: '2020-01-01T00:00:00.000Z',
+    })
+    await writeFile(path.join(dir, 'index.json'), `${JSON.stringify(file, null, 2)}\n`)
+
+    const reloaded = new Library(dir, logger)
+    await reloaded.load()
+    expect(reloaded.stats().total).toBe(1)
+    expect(reloaded.get(first!.id)).toBeDefined()
+    expect((await reloaded.verify())[0]!.ok).toBe(true)
   })
 
   it('verify() detects a mutated file via sha256 change', async () => {

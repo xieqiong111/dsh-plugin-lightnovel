@@ -30,6 +30,8 @@
     "!vendor/bili_novel_packer/*.log",
     "test/fixtures",
     "scripts/prepare.mjs",
+    "scripts/verify-nas.mjs",
+    "scripts/verify-live.mjs",
     "docs",
     "docker",
     "Dockerfile",

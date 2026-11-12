@@ -66,6 +66,25 @@ Dart 运行器探测顺序：`LN_DART_BINARY` → `/opt/bnp/bnp_headless` → `<
 | `offlineOnly` | boolean | `false` | `LN_OFFLINE_ONLY` | 只启用 `fixture`，且 `novel_download` 拒绝非 fixture 目标 |
 | `allowNonPublicSources` | boolean | `false` | — | 允许受限书源；插件仍不携带 Cookie / Authorization |
 
+### 在线书源搜索（显式 opt-in）
+
+`LN_BILINOVEL_SEARCH_URL` / `LN_WENKU8_SEARCH_URL` 可覆盖书源搜索 URL 模板，
+`{q}` 为 URL 编码后的关键词占位符。它们通过 `env_file: .env` 或容器环境变量注入，
+**不是** `Config` schema 字段。
+
+实测（2026-11-12）`www.bilinovel.net` 没有 robots 允许的公开 GET 关键词搜索端点：
+`GET /search.html?keyword=...` 返回固定的「热门搜索」推荐链接，与关键词无关；站点真实
+搜索是 POST 表单，其后端 `*.php` 路径被 `Disallow: /*.php$` 禁止。因此 `bilinovel`
+默认**不发起 live 搜索请求**，结果如实标记在 `degradedSources`，避免把推荐链接伪造成
+搜索命中。只有设置 `LN_BILINOVEL_SEARCH_URL` 时才会请求该 URL —— 配置前请自行确认它
+遵守 robots.txt 且确实返回关键词结果。
+
+详情 / 目录 / 正文 / 插图 / EPUB 走的是 Dart 核心的公开 GET 页面，**不受此开关影响**。
+完整预检证据与验证方法见 [`docs/LIVE-SOURCES.md`](./LIVE-SOURCES.md)。
+
+上游 Dart 日志路径由 bridge 自动注入 `BNP_LOG_FILE=<dataDir>/logs/bili_novel.log`，
+无需手工配置；原交互 CLI 行为不变。
+
 ### 任务与完整性
 
 | 字段 | 类型 | 默认 | 环境变量 | 说明 |
@@ -93,6 +112,7 @@ queued ──▶ running ──▶ completed
 - `downloadedChapters`、`downloadedVolumes` 记录**实际**写入 EPUB 的章节名与卷名（来自 Dart 进度事件与产物，而非请求预填值）。
 - 每个产物经 ZIP/EPUB 完整性校验：首个 `mimetype` 且未压缩、`container.xml`、`content.opf` manifest 目标全部存在且非空、spine、导航文档、章节/图片计数、`sha256`。
 - 校验通过的产物复制到 library，写入 `.sha256` 旁路文件，`novel_library {action:"verify"}` 可随时复核。
+- **一个 EPUB 路径只对应一条索引记录**：重复下载同一书名/卷会覆盖原文件并替换索引条目，不会留下 sha256 已失效的旧记录；旧版本产生的重复索引在 `load()` 时自动去重（保留最新条目，写 `deduplicated_index` 日志），避免全库复验误报损坏。
 - 日志为按天切分的 JSONL，保留 14 天，敏感字段自动脱敏，内存环形缓冲供 `novel_tasks {action:"logs"}` 查询。
 
 ## 诊断

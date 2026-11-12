@@ -17,14 +17,18 @@ import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
 import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
-import { readFile, stat } from 'node:fs/promises'
+import { mkdir, readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const fixturesDir = process.env.LN_FIXTURES_DIR || path.join(root, 'test', 'fixtures')
 const dartBinary = process.env.LN_DART_BINARY || '/opt/bnp/bnp_headless'
-const dataDir = process.env.LN_DATA_DIR || '/data'
+// Hermetic verification: the image sets LN_LIBRARY_DIR=/data/library, which is
+// the operator's real book shelf. Pin everything under a dedicated subtree so
+// repeated runs cannot pollute (or be poisoned by) production library state.
+const dataDir = path.join(process.env.LN_DATA_DIR || '/data', 'nas-verify')
+await mkdir(dataDir, { recursive: true })
 
 const checks = []
 function check(name, condition, detail = '') {
@@ -60,6 +64,7 @@ try {
 
   fiber = ctx.plugin(plugin, {
     dataDir,
+    libraryDir: path.join(dataDir, 'library'),
     fixturesDir,
     dartBinary,
     offlineOnly: true,
