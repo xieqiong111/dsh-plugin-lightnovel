@@ -11,3 +11,9 @@ data/
 # Pre-seeded Dart SDK archive for slow/offline builds (never commit the binary).
 build-assets/*.zip
 build-assets/part.*
+
+# Web 前端构建产物与交付压缩包
+web/node_modules/
+web/dist/
+web/*.tsbuildinfo
+/web-frontend-v1.zip

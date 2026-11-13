@@ -80,6 +80,23 @@ dsh --profile myprofile --dump-config | grep -A 20 "== dsh-plugin-lightnovel"
 
 ---
 
+## Web 前端（交互原型）
+
+仓库内 [`web/`](./web) 是一套独立的 React + TypeScript + Vite + Tailwind 前端，按设计稿还原「轻小说管理中心」工作台，覆盖 Dashboard、搜索发现、小说详情、下载任务、我的书库、书源状态、自动追更、统计分析、系统设置九个页面。
+
+```bash
+cd web
+npm install
+npm run dev      # http://localhost:5173
+npm run build    # 产物在 web/dist/
+```
+
+- 视觉还原与逐区域对比：[web/docs/COMPARISON.md](./web/docs/COMPARISON.md)、[web/docs/screenshots](./web/docs/screenshots)
+- 功能清单、Mock 边界、真实接口接入方式：[web/README.md](./web/README.md)
+- 前端数据层为独立 Mock（`web/src/services/novelApi.ts`，`API_MODE='mock'`），界面统一标注「交互原型 · 非真实数据」；`docs/API-CONTRACT.md` 中的 `/api/*` 仍是计划接口，插件后端与 Dart 核心未做修改。
+
+---
+
 ## 配置
 
 所有配置都可在 profile 的 `cordis.patch.yml` 中按 `id: lightnovel` 覆盖整行 `config`（patch 层是按行替换，不是深合并）。默认层见 [`cordis.patch.yml`](./cordis.patch.yml)，对应环境变量如下：
