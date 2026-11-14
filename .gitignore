@@ -4,7 +4,7 @@ node_modules/
 **/.dart_tool/
 vendor/bili_novel_packer/build/
 .env
-data/
+/data/
 *.log
 .DS_Store
 *.tgz
