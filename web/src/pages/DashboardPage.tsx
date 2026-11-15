@@ -166,26 +166,43 @@ export function DashboardPage() {
 
       <div className="mt-[32px] grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_310px]">
         <div className="space-y-[20px]">
-          {/* 为你精选 */}
+          {/* 为你精选（Live 模式只展示已正式入库的 EPUB） */}
           <Card data-testid="featured" className="p-0">
             <div className="flex items-center justify-between px-6 pb-4 pt-4">
-              <SectionTitle title="为你精选" />
+              <SectionTitle title={IS_LIVE ? '已入库书籍' : '为你精选'} />
               <Link
-                to="/search"
+                to={IS_LIVE ? '/library' : '/search'}
                 className="group inline-flex items-center gap-1.5 text-[11.5px] font-medium text-[#8B7CC8] transition hover:text-[#6C4AD9]"
               >
-                探索更多
+                {IS_LIVE ? '管理书库' : '探索更多'}
                 <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
               </Link>
             </div>
             <div className="grid grid-cols-2 gap-4 px-6 pb-6 sm:grid-cols-3 xl:grid-cols-5 xl:gap-[15px]">
-              {featured.map((novel) => (
-                <NovelCard
-                  key={novel.id}
-                  novel={novel}
-                  onOpen={() => navigate(`/novel/${encodeURIComponent(novel.id)}`)}
-                />
-              ))}
+              {featured.length === 0 ? (
+                <div className="col-span-full rounded-[12px] border border-dashed border-[#E4DCF8] bg-[#FBFAFE] px-4 py-8 text-center">
+                  <BookOpen className="mx-auto h-6 w-6 text-[#B9AEDD]" />
+                  <p className="mt-2 text-[12px] font-medium text-[#6B6385]">书库暂无已入库 EPUB</p>
+                  <p className="mt-1 text-[10.5px] text-[#A2A2B6]">
+                    只有下载并正式写入书库的书才会显示在这里。
+                  </p>
+                  <Link
+                    to="/search"
+                    className="mt-3 inline-flex items-center gap-1 text-[11px] font-semibold text-[#7E5EE9] hover:text-[#5A3FC0]"
+                  >
+                    去搜索并下载
+                    <ArrowRight className="h-3 w-3" />
+                  </Link>
+                </div>
+              ) : (
+                featured.map((novel) => (
+                  <NovelCard
+                    key={novel.id}
+                    novel={novel}
+                    onOpen={() => navigate(`/novel/${encodeURIComponent(novel.id)}`)}
+                  />
+                ))
+              )}
             </div>
           </Card>
 

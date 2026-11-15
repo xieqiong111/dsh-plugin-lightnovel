@@ -111,7 +111,7 @@ BFF 是一个零依赖 Node HTTP 进程：同端口托管 `web/dist` 与 `/api/*
 |---|---|---|
 | GET | `/api/health` | `{ok, dart, uptime}`，容器 healthcheck 使用 |
 | GET | `/api/status` | 运行时状态、书源、Dart runner（仅 basename）、书库统计、`features` |
-| GET | `/api/novels?query=&sources=&status=&limit=` | 空 query = 首页精选，只读本地索引 + 离线源，**不触网**；有 query 才搜索并如实返回 `degradedSources` |
+| GET | `/api/novels?query=&sources=&status=&limit=` | 空 query 返回本地索引候选，只读、**不触网**；前端在空搜索框时不请求。有 query 才搜索并如实返回 `degradedSources` |
 | GET | `/api/novels/:id` | 详情；Dart 可用时带分卷，失败回退本地索引 |
 | GET | `/api/novels/:id/volumes` | 分卷，`id` 形如 `${bookId}#v${index}` |
 | GET / POST | `/api/tasks` | 任务列表 / 创建（`volumeSelector` 还原 Dart 选择器） |

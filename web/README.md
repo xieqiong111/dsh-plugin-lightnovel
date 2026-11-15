@@ -177,7 +177,7 @@ web/
 
 | 能力 | Mock 构建 | Live 构建 |
 |---|---|---|
-| 首页精选 / 搜索 | `mock.ts` 本地过滤，420ms 模拟延迟 | 空 query 只读本地索引 + 离线源（不触网）；有 query 走 `PluginRuntime.search`，如实返回 `degradedSources` |
+| 首页书库展示 / 搜索 | `mock.ts` 本地过滤，420ms 模拟延迟 | 首页只从 `GET /api/library` 取已入库 EPUB；空搜索框不请求，只有输入关键词才走 `PluginRuntime.search` |
 | 详情 / 分卷 | 固定样例 | `GET /api/novels/:id`、`/volumes`，分卷 id 为 `${bookId}#v${index}` |
 | 创建下载 | 写入前端 store，假进度 | `POST /api/tasks`，`liveStore` 每 2s 轮询真实任务 |
 | 暂停 / 恢复 | 本地状态机 | 隐藏：插件只提供 cancel / retry，不伪造暂停能力 |
@@ -247,7 +247,7 @@ web/
 | 功能 | Mock 构建 | Live 构建（BFF） |
 | --- | --- | --- |
 | 小说搜索 | 本地样例按关键词/书源/状态过滤，420ms 模拟延迟 | `GET /api/novels?query=&sources=&status=`，真实 `PluginRuntime` 搜索 |
-| 首页精选 | 固定样例 | `GET /api/novels` 空 query：本地索引 + 离线 fixture，**不触网** |
+| 首页书库展示 | 固定样例（Mock 模式保留「为你精选」） | `GET /api/library`，仅展示已正式入库的 EPUB；空库显示引导，不回退样例 |
 | 小说详情 | Mock 字段 | `GET /api/novels/:id`，`rating=0` 表示无评分，不编造 |
 | 分卷 / 章节 | Mock 8 卷 × 8 章 | `GET /api/novels/:id/volumes`，id 编码 `${bookId}#v${index}` |
 | 创建下载 | 写入前端 store + 假进度 | `POST /api/tasks`，真实 Dart 打包 |
@@ -333,7 +333,7 @@ React (web/dist)  ──HTTP──>  server/serve.mjs  ──直接调用──>
 
 ### 8.5 合规边界
 
-- 空 query 的首页/精选不触网；只有用户输入关键词才发起搜索。
+- 首页与书库只展示已正式入库的 EPUB；空搜索框不列索引书，只有输入关键词才发起搜索。
 - 在线书源遵守 robots.txt、Crawl-delay 与同主机 4s 限速；不携带 Cookie/Authorization，不绕过登录、付费或 Cloudflare。
 - 公开源无可用关键词端点时返回 `degradedSources`，**不伪造命中**；评分/延迟/成功率没有就显示 `0` / `null` / `—`。
 - 删除默认关闭；token 默认关闭；受限书源默认禁用。

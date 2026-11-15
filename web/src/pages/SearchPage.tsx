@@ -76,8 +76,15 @@ export function SearchPage() {
 
   useEffect(() => {
     const id = ++requestId.current
-    setLoading(true)
     setSearchError(null)
+    // Live mode must not dump the local index on an empty search form;
+    // discovery results are only shown after an explicit keyword query.
+    if (IS_LIVE && !keyword.trim()) {
+      setResult({ results: [], total: 0, degradedSources: [], mocked: false })
+      setLoading(false)
+      return
+    }
+    setLoading(true)
     novelApi
       .searchNovels({
         keyword,
@@ -99,6 +106,8 @@ export function SearchPage() {
       requestId.current += 1
     }
   }, [keyword, source, status])
+
+  const idle = IS_LIVE && !keyword.trim()
 
   const results = result?.results ?? []
   const selectedSourceLabel = useMemo(
@@ -252,6 +261,8 @@ export function SearchPage() {
               <Spinner className="h-3 w-3" />
               正在检索 {selectedSourceLabel}…
             </>
+          ) : idle ? (
+            <span>输入关键词开始检索</span>
           ) : (
             <>
               找到 <span className="font-semibold text-[#6C4AD9]">{result?.total ?? 0}</span> 本相关作品
@@ -298,16 +309,20 @@ export function SearchPage() {
         <Card className="mt-4">
           <EmptyState
             icon={<BookMarked className="h-6 w-6" />}
-            title="没有找到匹配的作品"
+            title={idle ? '输入关键词开始检索' : '没有找到匹配的作品'}
             description={
-              IS_LIVE
-                ? '该关键词在当前已配置书源中没有命中。公开源可能不提供关键词搜索端点，可尝试已知书籍 ID 直达详情页。'
-                : '试试更短的关键词，或切换书源与状态筛选。演示库仅包含 8 本样例小说。'
+              idle
+                ? '首页与书库只展示已正式入库的 EPUB；搜索可发现候选书目，下载完成后才会入库。'
+                : IS_LIVE
+                  ? '该关键词在当前已配置书源中没有命中。公开源可能不提供关键词搜索端点，可尝试已知书籍 ID 直达详情页。'
+                  : '试试更短的关键词，或切换书源与状态筛选。演示库仅包含 8 本样例小说。'
             }
             action={
-              <Button variant="soft" size="sm" onClick={reset}>
-                清空筛选条件
-              </Button>
+              idle ? undefined : (
+                <Button variant="soft" size="sm" onClick={reset}>
+                  清空筛选条件
+                </Button>
+              )
             }
           />
         </Card>

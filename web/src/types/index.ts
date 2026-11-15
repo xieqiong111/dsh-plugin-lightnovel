@@ -55,9 +55,11 @@ export interface LibraryItem {
   id: string
   novelId: string
   title: string
+  author: string
   fileName: string
   cover: CoverTheme
   coverIndex: number
+  volumes: number
   volumeLabel: string
   size: string
   integrity: 'passed' | 'pending' | 'failed'

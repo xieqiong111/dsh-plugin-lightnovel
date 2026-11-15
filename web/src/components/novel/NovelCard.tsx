@@ -15,7 +15,7 @@ export function NovelCard({
 }) {
   const completed = novel.status === 'completed'
   const unknown = novel.status === 'unknown'
-  const statusLabel = completed ? '已完结' : unknown ? '状态未知' : '连载中'
+  const statusLabel = completed ? '已完结' : unknown ? novel.statusText || '状态未知' : '连载中'
   return (
     <div
       className={cn(

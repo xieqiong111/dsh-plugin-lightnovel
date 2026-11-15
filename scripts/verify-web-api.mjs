@@ -327,6 +327,9 @@ try {
     library.status === 200 && !!entry && entry.integrity === 'passed',
     `${library.body?.length} entries · ${entry?.fileName}`)
   check('library item is not marked as mock', entry && entry.isMock !== true)
+  check('library item exposes author and volume count',
+    entry && typeof entry.author === 'string' && entry.author.length > 0 && entry.volumes === 1,
+    `${entry?.author} · ${entry?.volumes} volume(s)`)
 
   const libraryStats = await request(appPort, '/api/library/stats')
   check('GET /api/library/stats reflects one verified EPUB',

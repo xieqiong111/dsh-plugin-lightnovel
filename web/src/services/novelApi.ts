@@ -69,6 +69,30 @@ const queryString = (values: Record<string, string | undefined>) => {
   return text ? `?${text}` : ''
 }
 
+/**
+ * Dashboard showcase is library-first in live mode: never surface a book that
+ * has not produced a real EPUB. Search remains the discovery surface.
+ */
+function libraryNovel(item: LibraryItem): Novel {
+  return {
+    id: item.novelId || item.id,
+    title: item.title,
+    author: item.author,
+    cover: item.cover,
+    coverIndex: item.coverIndex,
+    volumes: item.volumes,
+    source: '本地书库',
+    sourceId: item.tags[0] ?? 'library',
+    status: 'unknown',
+    statusText: '已入库',
+    summary: item.fileName,
+    tags: item.tags,
+    rating: 0,
+    updatedAt: item.addedAt,
+    isMock: false,
+  }
+}
+
 const liveApi: NovelApi = {
   searchNovels({ keyword, sources: sourceIds, status }) {
     return apiFetch<SearchResult>(
@@ -119,8 +143,8 @@ const liveApi: NovelApi = {
     return apiFetch<VerifyResult>(`/library/${encodeURIComponent(id)}/verify`, { method: 'POST' })
   },
   async getFeatured() {
-    const result = await liveApi.searchNovels({ keyword: '', sources: [], status: 'all' })
-    return result.results
+    const items = await liveApi.listLibrary()
+    return items.slice(0, 5).map(libraryNovel)
   },
   getStatus() {
     return apiFetch<RuntimeStatus>('/status')

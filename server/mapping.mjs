@@ -121,8 +121,10 @@ export function toLibraryItem(entry) {
       ? String(entry.bookId)
       : `${entry.sourceId}:${entry.bookId}`,
     title: entry.title,
+    author: entry.author || '未知作者',
     fileName: entry.relativePath.split(/[\\/]/).pop() || entry.relativePath,
     ...art(entry.bookId || entry.id),
+    volumes: Array.isArray(entry.volumeNames) && entry.volumeNames.length > 0 ? entry.volumeNames.length : 1,
     volumeLabel: (entry.volumeNames ?? []).join('、') || '单行本',
     size: formatBytes(entry.bytes),
     integrity: entry.integrity === 'ok' ? 'passed' : entry.integrity === 'failed' ? 'failed' : 'pending',
