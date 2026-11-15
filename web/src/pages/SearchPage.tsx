@@ -7,10 +7,14 @@ import { NovelCard } from '@/components/novel/NovelCard'
 import { NovelDetailDialog } from '@/components/novel/NovelDetailDialog'
 import { useToast } from '@/components/common/Toast'
 import { novelApi, type SearchResult } from '@/services/novelApi'
+import { DEMO, IS_LIVE } from '@/services/runtime'
 import type { Novel, NovelStatus, SourceId } from '@/types'
 import { cn } from '@/services/utils'
 
-const sourceFilters: { id: SourceId | 'all'; label: string }[] = [
+type SourceFilter = { id: SourceId | 'all'; label: string }
+
+/** Mock 原型保留固定书源；live 模式用运行时 registry 的真实书源替换。 */
+const MOCK_SOURCE_FILTERS: SourceFilter[] = [
   { id: 'all', label: '全部书源' },
   { id: 'bilinovel', label: 'Bilinovel' },
   { id: 'fixture', label: '示例源' },
@@ -21,9 +25,12 @@ const statusFilters: { id: 'all' | NovelStatus; label: string }[] = [
   { id: 'all', label: '全部状态' },
   { id: 'ongoing', label: '连载中' },
   { id: 'completed', label: '已完结' },
+  { id: 'unknown', label: '状态未知' },
 ]
 
-const hotKeywords = ['月下的茶馆', '无职转生', '86', '史莱姆', '治愈', '异世界']
+const hotKeywords = IS_LIVE
+  ? ['星海旅途', '拂晓之剑', '茶馆', '科幻', '奇幻']
+  : ['月下的茶馆', '无职转生', '86', '史莱姆', '治愈', '异世界']
 
 export function SearchPage() {
   const [params, setParams] = useSearchParams()
@@ -35,6 +42,8 @@ export function SearchPage() {
   const [result, setResult] = useState<SearchResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeNovel, setActiveNovel] = useState<Novel | null>(null)
+  const [sourceFilters, setSourceFilters] = useState<SourceFilter[]>(MOCK_SOURCE_FILTERS)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const requestId = useRef(0)
   const { toast } = useToast()
 
@@ -44,9 +53,31 @@ export function SearchPage() {
     setInput(query)
   }, [params])
 
+  // Live mode exposes the operator's configured registry, not a hard-coded list.
+  useEffect(() => {
+    if (!IS_LIVE) return
+    let alive = true
+    novelApi
+      .getSources()
+      .then((sources) => {
+        if (!alive) return
+        setSourceFilters([
+          { id: 'all', label: '全部书源' },
+          ...sources.map((item) => ({ id: item.id, label: item.name })),
+        ])
+      })
+      .catch(() => {
+        /* keep the neutral "all" filter; the search request will surface errors */
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
   useEffect(() => {
     const id = ++requestId.current
     setLoading(true)
+    setSearchError(null)
     novelApi
       .searchNovels({
         keyword,
@@ -58,6 +89,12 @@ export function SearchPage() {
         setResult(data)
         setLoading(false)
       })
+      .catch((error: unknown) => {
+        if (requestId.current !== id) return
+        setResult(null)
+        setSearchError(error instanceof Error ? error.message : '检索失败')
+        setLoading(false)
+      })
     return () => {
       requestId.current += 1
     }
@@ -66,7 +103,7 @@ export function SearchPage() {
   const results = result?.results ?? []
   const selectedSourceLabel = useMemo(
     () => sourceFilters.find((item) => item.id === source)?.label ?? '全部书源',
-    [source],
+    [source, sourceFilters],
   )
 
   const submit = (value?: string) => {
@@ -94,13 +131,17 @@ export function SearchPage() {
             搜索发现 <span className="text-[14px] font-medium text-[#B5B5C6]">/ 多书源检索</span>
           </span>
         }
-        description="按书名、作者或关键词检索已配置书源。演示环境只过滤本地样例数据，不会发起真实抓取。"
+        description={
+          IS_LIVE
+            ? '按书名、作者或关键词检索已配置书源。公开源若无可用搜索端点，会如实标注降级而不会伪造命中。'
+            : '按书名、作者或关键词检索已配置书源。演示环境只过滤本地样例数据，不会发起真实抓取。'
+        }
         actions={
           <>
-            <Badge tone="amber" className="h-7 px-3">
-              演示数据
+            <Badge tone={IS_LIVE ? 'green' : 'amber'} className="h-7 px-3">
+              {DEMO.label}
             </Badge>
-            <Button variant="secondary" size="sm" icon={<Link2 className="h-3.5 w-3.5" />} onClick={() => toast({ tone: 'info', title: 'URL 直达暂为占位', description: '后端 /api/novels/:id 尚未实现，接入后可直接解析书籍链接。' })}>
+            <Button variant="secondary" size="sm" icon={<Link2 className="h-3.5 w-3.5" />} onClick={() => toast({ tone: 'info', title: 'URL 直达', description: IS_LIVE ? '把书籍 ID 拼到 /novel/:id 即可打开详情；详情接口 GET /api/novels/:id 由 BFF 提供。' : '演示原型不解析外部链接；接入 live 模式后可用详情接口打开书籍。' })}>
               URL 直达
             </Button>
           </>
@@ -221,11 +262,20 @@ export function SearchPage() {
         </div>
         <span className="hidden items-center gap-1 text-[10px] text-[#B5B5C6] sm:flex">
           <Info className="h-3 w-3" />
-          结果按相关度排序 · Mock 数据
+          {IS_LIVE ? '结果按相关度排序 · 来自插件书源与本地索引' : '结果按相关度排序 · Mock 数据'}
         </span>
       </div>
 
-      {loading ? (
+      {searchError ? (
+        <Card className="mt-4">
+          <EmptyState
+            icon={<Info className="h-6 w-6" />}
+            title="检索失败"
+            description={searchError}
+            action={<Button variant="soft" size="sm" onClick={() => submit(keyword)}>重试</Button>}
+          />
+        </Card>
+      ) : loading ? (
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {Array.from({ length: 8 }).map((_, index) => (
             <div key={index} className="rounded-[14px] border border-[#F1EFF8] bg-white p-1.5">
@@ -249,7 +299,11 @@ export function SearchPage() {
           <EmptyState
             icon={<BookMarked className="h-6 w-6" />}
             title="没有找到匹配的作品"
-            description="试试更短的关键词，或切换书源与状态筛选。演示库仅包含 8 本样例小说。"
+            description={
+              IS_LIVE
+                ? '该关键词在当前已配置书源中没有命中。公开源可能不提供关键词搜索端点，可尝试已知书籍 ID 直达详情页。'
+                : '试试更短的关键词，或切换书源与状态筛选。演示库仅包含 8 本样例小说。'
+            }
             action={
               <Button variant="soft" size="sm" onClick={reset}>
                 清空筛选条件

@@ -19,6 +19,7 @@ import { CoverArt } from '@/components/novel/CoverArt'
 import { useToast } from '@/components/common/Toast'
 import { useTasks, taskStore } from '@/services/taskStore'
 import { novelApi } from '@/services/novelApi'
+import { DEMO, IS_LIVE } from '@/services/runtime'
 import type { DownloadTask, TaskState } from '@/types'
 import { cn } from '@/services/utils'
 
@@ -50,15 +51,23 @@ export function TasksPage() {
   const runningCount = tasks.filter((task) => task.state === 'running').length
 
   const cancel = async (task: DownloadTask) => {
-    await novelApi.cancelTask(task.id)
-    setCancelTarget(null)
-    setDetail(null)
-    toast({ tone: 'warning', title: '任务已取消', description: `${task.title} · 未完成的章节不会写入书库。` })
+    try {
+      await novelApi.cancelTask(task.id)
+      setCancelTarget(null)
+      setDetail(null)
+      toast({ tone: 'warning', title: '任务已取消', description: `${task.title} · 未完成的章节不会写入书库。` })
+    } catch (error) {
+      toast({ tone: 'warning', title: '取消失败', description: error instanceof Error ? error.message : '未知错误' })
+    }
   }
 
   const retry = async (task: DownloadTask) => {
-    await novelApi.retryTask(task.id)
-    toast({ tone: 'info', title: '已重新排队', description: `${task.title} 将从头开始重试。` })
+    try {
+      await novelApi.retryTask(task.id)
+      toast({ tone: 'info', title: '已重新排队', description: `${task.title} 将从头开始重试。` })
+    } catch (error) {
+      toast({ tone: 'warning', title: '重试失败', description: error instanceof Error ? error.message : '未知错误' })
+    }
   }
 
   return (
@@ -66,18 +75,25 @@ export function TasksPage() {
       <PageHeader
         eyebrow="Download queue"
         title="下载任务"
-        description="异步任务状态由 Mock 层模拟推进；真实环境应轮询 GET /api/tasks/:taskId 获取 progress.percent 与 artifacts.integrity。"
+        description={
+          IS_LIVE
+            ? '任务状态来自插件 TaskManager，前端每 2 秒轮询 GET /api/tasks；取消与重试调用真实接口，插件不提供暂停/恢复。'
+            : '异步任务状态由 Mock 层模拟推进，仅用于演示动效，不会发起真实网络请求。'
+        }
         actions={
           <>
-            <Badge tone="violet" className="h-7 px-3">
-              <Download className="h-3 w-3" />
-              {runningCount} 个任务进行中
+            <Badge tone={IS_LIVE ? 'green' : 'amber'} className="h-7 px-3">
+              {IS_LIVE ? <Download className="h-3 w-3" /> : null}
+              {IS_LIVE ? `${runningCount} 个任务进行中` : DEMO.label}
             </Badge>
             <Button
               variant="secondary"
               size="sm"
               icon={<RefreshCw className="h-3.5 w-3.5" />}
-              onClick={() => toast({ tone: 'info', title: '已刷新任务列表', description: '演示层为本地状态，无需真实轮询。' })}
+              onClick={() => {
+                taskStore.refresh()
+                toast({ tone: 'info', title: '已刷新任务列表', description: IS_LIVE ? '已立即向 /api/tasks 发起一次轮询。' : '演示层为本地状态，无需真实轮询。' })
+              }}
             >
               刷新
             </Button>
@@ -174,7 +190,7 @@ export function TasksPage() {
                   </Button>
                   {(task.state === 'running' || task.state === 'queued') && (
                     <>
-                      {task.state === 'running' ? (
+                      {!IS_LIVE && (task.state === 'running' ? (
                         <Button
                           variant="ghost"
                           size="sm"
@@ -195,7 +211,7 @@ export function TasksPage() {
                         >
                           恢复
                         </Button>
-                      )}
+                      ))}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -223,7 +239,9 @@ export function TasksPage() {
       <div className="mt-5 flex items-start gap-2 rounded-[12px] border border-[#E9E4FA] bg-[#FBFAFF] px-4 py-3 text-[10.5px] leading-relaxed text-[#8B8BA0]">
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#A78BFA]" />
         <span>
-          前端每 2.6 秒推进一次 Mock 进度仅用于演示动效。取消与重试会修改本地 mock 状态，不会调用真实接口（接口仍为待实现）。
+          {IS_LIVE
+            ? '每 2 秒轮询 GET /api/tasks 读取 TaskManager 的真实进度（progress.percent 与阶段）；取消与重试调用 POST /api/tasks/:id/cancel | /retry。插件没有暂停/恢复语义，故 live 模式不显示这些按钮。'
+            : '前端每 2.6 秒推进一次 Mock 进度仅用于演示动效。取消与重试只修改本地 mock 状态，不会调用真实接口。'}
         </span>
       </div>
 
@@ -251,9 +269,11 @@ export function TasksPage() {
             「{cancelTarget?.title}」当前已完成 <span className="font-semibold text-[#6C4AD9]">{cancelTarget?.percent}%</span>。
             取消后未完成的章节将被丢弃，已生成的临时文件由后端清理。
           </p>
-          <p className="mt-2 text-[10px] text-[#A2A2B6]">
-            真实实现需在后端二次校验 confirm: true，避免任意路径删除。
-          </p>
+            <p className="mt-2 text-[10px] text-[#A2A2B6]">
+              {IS_LIVE
+                ? '后端按任务 ID 取消，不接受文件路径参数，避免任意路径删除。'
+                : 'Mock 演示不会修改任何真实任务或文件。'}
+            </p>
         </div>
       </Modal>
     </div>
@@ -305,17 +325,18 @@ function TaskDetailModal({ task, onClose }: { task: DownloadTask | null; onClose
 
           <div className="mt-4 rounded-[10px] border border-[#EFEDF6] px-3.5 py-3">
             <p className="text-[10px] font-semibold text-[#3F4058]">产物完整性</p>
-            <div className="mt-2 flex items-center justify-between text-[10px] text-[#8B8BA0]">
-              <span>volume-{task.id}.epub</span>
+            <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-[#8B8BA0]">
+              <span className="truncate">{IS_LIVE ? (task.size ? `产物体积 ${task.size}` : '产物路径见书库') : `volume-${task.id}.epub`}</span>
               <Badge tone={task.state === 'completed' ? 'green' : 'gray'}>
-                {task.state === 'completed' ? '校验通过' : '等待生成'}
+                {task.state === 'completed' ? (IS_LIVE ? '已入库' : '校验通过') : '等待生成'}
               </Badge>
             </div>
           </div>
 
           <p className="mt-3 text-[9.5px] leading-relaxed text-[#B5B5C6]">
-            字段对齐 API-CONTRACT.md 中的 state / progress.percent / progress.chaptersDone / artifacts[].integrity。
-            当前为 Mock 展示。
+            {IS_LIVE
+              ? '字段来自插件 TaskManager 记录（state / progress.percent / artifacts[].bytes），经 BFF 的 GET /api/tasks 投影，未做任何填充或伪造。'
+              : '字段对齐设计契约中的 state / progress.percent / progress.chaptersDone / artifacts[].integrity，当前为 Mock 展示。'}
           </p>
         </div>
       )}

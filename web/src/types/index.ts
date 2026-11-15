@@ -1,6 +1,7 @@
-export type NovelStatus = 'ongoing' | 'completed'
+export type NovelStatus = 'ongoing' | 'completed' | 'unknown'
 export type CoverTheme = 'moon' | 'flower' | 'mountain' | 'orb' | 'city' | 'rose' | 'night' | 'paper'
-export type SourceId = 'bilinovel' | 'fixture' | 'local' | 'web'
+/** Source ids are open-ended: the backend registry may add public sources. */
+export type SourceId = string
 
 export interface Novel {
   id: string
@@ -11,9 +12,12 @@ export interface Novel {
   volumes: number
   source: string
   sourceId: SourceId
+  sourceUrl?: string
   status: NovelStatus
+  statusText?: string
   summary: string
   tags: string[]
+  /** 0 表示插件不提供评分（真实数据下应显示「暂无评分」） */
   rating: number
   updatedAt: string
   /** 仅演示数据标记，用于 UI 上明确区分真实业务数据 */
@@ -66,6 +70,17 @@ export interface LibraryStats {
   tasks: number
   queued: number
   verified: number
+  bytes?: number
+  chapters?: number
+  failed?: number
+}
+
+export interface VerifyResult {
+  ok: boolean
+  id: string
+  integrity: LibraryItem['integrity']
+  problems?: string[]
+  sha256Changed?: boolean
 }
 
 export interface ActivityItem {

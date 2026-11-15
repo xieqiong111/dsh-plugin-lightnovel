@@ -12,8 +12,15 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5273,
-    // 预留桥接层代理：待后端实现 /api 后启用
-    // proxy: { '/api': 'http://127.0.0.1:8080' },
+    // 开发服务器单独占用 5173；BFF 默认 5273，避免同端口自代理。
+    port: 5173,
+    // live 开发：先 `node server/serve.mjs`，再 `VITE_API_MODE=live npm run dev`。
+    // 目标可用 LN_BFF_ORIGIN 覆盖（例如容器映射到其他端口时）。
+    proxy: {
+      '/api': {
+        target: process.env.LN_BFF_ORIGIN || 'http://127.0.0.1:5273',
+        changeOrigin: true,
+      },
+    },
   },
 })

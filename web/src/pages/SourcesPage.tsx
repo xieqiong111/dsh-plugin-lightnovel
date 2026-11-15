@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Activity, AlertTriangle, CheckCircle2, ExternalLink, Globe2, RefreshCw, ShieldAlert, Zap } from 'lucide-react'
-import { Badge, Button, Card, SectionTitle } from '@/components/common/ui'
+import { Badge, Button, Card, EmptyState, SectionTitle, Spinner } from '@/components/common/ui'
 import { Modal } from '@/components/common/Modal'
 import { PageHeader } from '@/components/common/PageHeader'
 import { useToast } from '@/components/common/Toast'
-import { sources } from '@/data/mock'
+import { sources as mockSources } from '@/data/mock'
+import { novelApi } from '@/services/novelApi'
+import { DEMO, IS_LIVE } from '@/services/runtime'
 import type { SourceHealth } from '@/types'
 import { cn } from '@/services/utils'
 
@@ -18,6 +20,9 @@ export function SourcesPage() {
   const { toast } = useToast()
   const [logSource, setLogSource] = useState<SourceHealth | null>(null)
   const [testing, setTesting] = useState<string | null>(null)
+  const [sources, setSources] = useState<SourceHealth[]>(IS_LIVE ? [] : mockSources)
+  const [loading, setLoading] = useState(IS_LIVE)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [enabled, setEnabled] = useState<Record<string, boolean>>({
     bilinovel: true,
     fixture: true,
@@ -25,8 +30,55 @@ export function SourcesPage() {
     web: false,
   })
 
-  const test = (source: SourceHealth) => {
+  const reload = async (announce = false) => {
+    if (!IS_LIVE) {
+      if (announce) toast({ tone: 'info', title: '已刷新书源状态', description: '演示数据保持不变。' })
+      return
+    }
+    setLoading(true)
+    try {
+      const data = await novelApi.getSources()
+      setSources(data)
+      setLoadError(null)
+      setEnabled((prev) => {
+        const next = { ...prev }
+        for (const item of data) if (next[item.id] === undefined) next[item.id] = item.state !== 'offline'
+        return next
+      })
+      if (announce) toast({ tone: 'success', title: '已读取运行时书源配置', description: `共 ${data.length} 个书源，状态来自插件 registry。` })
+    } catch (error) {
+      setLoadError(error instanceof Error ? error.message : '读取书源失败')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    void reload()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Live mode never fabricates latency/success rates: the plugin exposes
+  // configuration only, so "test" re-reads the registry instead of probing.
+  const test = async (source: SourceHealth) => {
     setTesting(source.id)
+    if (IS_LIVE) {
+      try {
+        const fresh = await novelApi.getSources()
+        setSources(fresh)
+        const found = fresh.find((item) => item.id === source.id)
+        toast({
+          tone: 'info',
+          title: `${source.name} · 运行时状态`,
+          description: `${found?.state === 'degraded' ? '降级' : found?.state === 'offline' ? '离线' : '在线'} · 未执行实时探测。${found?.note ?? ''}`,
+        })
+      } catch (error) {
+        toast({ tone: 'warning', title: '读取失败', description: error instanceof Error ? error.message : '未知错误' })
+      } finally {
+        setTesting(null)
+      }
+      return
+    }
     window.setTimeout(() => {
       setTesting(null)
       toast({
@@ -42,20 +94,25 @@ export function SourcesPage() {
       <PageHeader
         eyebrow="Source health"
         title="书源状态"
-        description="只读诊断面板。当前状态来自 Mock 配置，真实健康检查需接入 GET /api/status 与日志接口。"
+        description={
+          IS_LIVE
+            ? '只读诊断面板。书源来自插件运行时 registry，状态为配置态而非实时探测；受限或降级书源会被如实标注。'
+            : '只读诊断面板。当前状态来自 Mock 配置，切换到 live 模式后可读取插件运行时书源。'
+        }
         actions={
           <>
-            <Badge tone="amber" className="h-7 px-3">
+            <Badge tone={IS_LIVE ? 'green' : 'amber'} className="h-7 px-3">
               <ShieldAlert className="h-3 w-3" />
-              只读诊断
+              {IS_LIVE ? `${sources.length} 个书源` : '只读诊断'}
             </Badge>
             <Button
               variant="secondary"
               size="sm"
               icon={<RefreshCw className="h-3.5 w-3.5" />}
-              onClick={() => toast({ tone: 'info', title: '已刷新书源状态', description: '演示数据保持不变。' })}
+              loading={loading}
+              onClick={() => void reload(true)}
             >
-              重新探测
+              刷新配置
             </Button>
           </>
         }
@@ -64,10 +121,17 @@ export function SourcesPage() {
       <div className="mb-5 flex items-start gap-2 rounded-[12px] border border-[#E9E4FA] bg-[#FBFAFF] px-4 py-3 text-[10.5px] leading-relaxed text-[#8B8BA0]">
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#A78BFA]" />
         <span>
-          书源启用开关仅作为前端配置占位，不会修改插件运行时。Bilinovel 默认缺少公开关键词搜索入口，建议使用 URL 直达详情。
+          {IS_LIVE
+            ? '开关仅作为前端占位，不会修改插件运行时。公开源若未提供可用的关键词搜索端点，会默认不发起实时搜索并如实标注降级，不会伪造命中。'
+            : '书源启用开关仅作为前端配置占位，不会修改插件运行时。Bilinovel 默认缺少公开关键词搜索入口，建议使用 URL 直达详情。'}
         </span>
       </div>
 
+      {loading && sources.length === 0 ? (
+        <Card className="flex items-center gap-2 p-8 text-[11px] text-[#8B8BA0]"><Spinner className="h-4 w-4" />正在读取书源配置…</Card>
+      ) : loadError && sources.length === 0 ? (
+        <Card><EmptyState icon={<AlertTriangle className="h-6 w-6" />} title="书源读取失败" description={loadError} action={<Button variant="soft" size="sm" onClick={() => void reload()}>重试</Button>} /></Card>
+      ) : (
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
         {sources.map((source) => {
           const meta = stateMeta[source.state]
@@ -161,9 +225,10 @@ export function SourcesPage() {
           )
         })}
       </div>
+      )}
 
       <Card className="mt-5 p-5">
-        <SectionTitle title="能力矩阵" className="[&_h2]:text-[17px]" right={<Badge tone="amber">Mock</Badge>} />
+        <SectionTitle title="能力矩阵" className="[&_h2]:text-[17px]" right={<Badge tone={IS_LIVE ? 'green' : 'amber'}>{DEMO.label}</Badge>} />
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[560px] text-left text-[10.5px]">
             <thead>
@@ -181,9 +246,9 @@ export function SourcesPage() {
                 <tr key={source.id}>
                   <td className="py-2.5 font-medium text-[#3F4058]">{source.name}</td>
                   <td className="py-2.5 text-[#8B8BA0]">{source.searchable ? '✓ 已支持' : '— 受限'}</td>
-                  <td className="py-2.5 text-[#8B8BA0]">✓ 计划中</td>
-                  <td className="py-2.5 text-[#8B8BA0]">✓ 计划中</td>
-                  <td className="py-2.5 text-[#8B8BA0]">✓ 计划中</td>
+                  <td className="py-2.5 text-[#8B8BA0]">{IS_LIVE ? '✓ BFF 已提供' : '✓ 计划中'}</td>
+                  <td className="py-2.5 text-[#8B8BA0]">{IS_LIVE ? '✓ BFF 已提供' : '✓ 计划中'}</td>
+                  <td className="py-2.5 text-[#8B8BA0]">{IS_LIVE ? '✓ BFF 已提供' : '✓ 计划中'}</td>
                   <td className="py-2.5">
                     <span
                       className={cn(
@@ -211,20 +276,30 @@ export function SourcesPage() {
       >
         <div className="p-5">
           <div className="flex items-center justify-between pb-3">
-            <p className="text-[10px] text-[#A2A2B6]">最近 5 条 · Mock 输出</p>
+            <p className="text-[10px] text-[#A2A2B6]">{IS_LIVE ? '运行时配置快照' : '最近 5 条 · Mock 输出'}</p>
             <Badge tone="gray">只读</Badge>
           </div>
           <pre className="max-h-[320px] overflow-auto rounded-[12px] bg-[#1B1C3B] p-4 font-mono text-[10px] leading-[1.9] text-[#C9C6E8]">
-            {[
-              `[status] ${logSource?.id} state=${logSource?.state}`,
-              `[probe] GET ${logSource?.host} -> 200 OK (${logSource?.latencyMs}ms)`,
-              '[search] query="" -> skipped (no public keyword endpoint)',
-              '[detail] adapter ready · rateLimit=1 req/s',
-              '[warn] 真实网络请求未接入；以上数据来自前端 Mock',
-            ].join('\n')}
+            {IS_LIVE
+              ? [
+                  `[source] id=${logSource?.id} state=${logSource?.state}`,
+                  `[config] baseUrl=${logSource?.host}`,
+                  `[search] searchable=${logSource?.searchable}`,
+                  `[note] ${logSource?.note ?? '—'}`,
+                  '[probe] 未执行实时网络探测；状态来自插件运行时配置',
+                ].join('\n')
+              : [
+                  `[status] ${logSource?.id} state=${logSource?.state}`,
+                  `[probe] GET ${logSource?.host} -> 200 OK (${logSource?.latencyMs}ms)`,
+                  '[search] query="" -> skipped (no public keyword endpoint)',
+                  '[detail] adapter ready · rateLimit=1 req/s',
+                  '[warn] 真实网络请求未接入；以上数据来自前端 Mock',
+                ].join('\n')}
           </pre>
           <p className="mt-3 text-[9.5px] leading-relaxed text-[#A2A2B6]">
-            日志接口对应 GET /api/logs?limit=50，目前尚未实现，不应把 DSH 管理接口直接暴露到公网。
+            {IS_LIVE
+              ? '书源状态来自 GET /api/sources（插件 registry 配置）。为避免误导，不提供伪造的延迟与成功率，也不把 DSH 管理接口暴露到公网。'
+              : '日志接口对应 GET /api/logs?limit=50，目前尚未实现，不应把 DSH 管理接口直接暴露到公网。'}
           </p>
         </div>
       </Modal>

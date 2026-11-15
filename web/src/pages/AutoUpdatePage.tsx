@@ -2,20 +2,25 @@ import { BellRing, Clock, Info, Plus, RefreshCw, Sparkles } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, SectionTitle } from '@/components/common/ui'
 import { PageHeader } from '@/components/common/PageHeader'
 import { CoverArt } from '@/components/novel/CoverArt'
-import { novels } from '@/data/mock'
+import { useAsync } from '@/hooks/useAsync'
+import { novelApi } from '@/services/novelApi'
+import { IS_LIVE } from '@/services/runtime'
 import { useToast } from '@/components/common/Toast'
 
 export function AutoUpdatePage() {
   const { toast } = useToast()
-  const placeholderRules = novels.slice(1, 4)
+  // Both modes list real (mock sample / runtime indexed) titles, but no rule is
+  // ever persisted: the plugin has no scheduler. Controls stay disabled.
+  const { data } = useAsync(() => novelApi.getFeatured(), [])
+  const placeholderRules = (data ?? []).slice(1, 4)
 
   return (
     <div>
       <PageHeader
         eyebrow="Auto update · planned"
         title="自动追更"
-        description="按固定周期检查书源更新，并在有新章节时自动创建下载任务。该能力当前仅完成界面占位，插件后端尚未提供调度接口。"
-        actions={<Badge tone="amber" className="h-7 px-3">UI 占位 · 不可用</Badge>}
+        description="按固定周期检查书源更新，并在有新章节时自动创建下载任务。无论 Mock 还是 Live 模式，插件后端都尚未提供 cron 调度与更新差异比对接口，因此本页控件全部禁用。"
+        actions={<Badge tone="amber" className="h-7 px-3">{IS_LIVE ? 'Live · 调度未实现' : 'UI 占位 · 不可用'}</Badge>}
       />
 
       <Card className="relative mb-5 overflow-hidden border-[#F5E3BE] bg-[linear-gradient(100deg,#FFFBF3,#FDF6E8)] p-6">

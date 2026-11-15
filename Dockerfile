@@ -99,6 +99,7 @@ COPY cordis.patch.yml ./cordis.patch.yml
 COPY vendor/bili_novel_packer ./vendor/bili_novel_packer
 COPY test/fixtures ./test/fixtures
 COPY scripts ./scripts
+COPY server ./server
 COPY docs ./docs
 COPY docker/entrypoint.sh /usr/local/bin/ln-entrypoint.sh
 COPY README.md LICENSE THIRD_PARTY_NOTICES.md ./

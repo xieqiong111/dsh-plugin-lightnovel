@@ -17,11 +17,11 @@ import { Badge, Card, Progress, SectionTitle } from '@/components/common/ui'
 import { CoverArt } from '@/components/novel/CoverArt'
 import { HeroArt } from '@/components/novel/HeroArt'
 import { NovelCard } from '@/components/novel/NovelCard'
-import { activities, library, libraryStats, novels } from '@/data/mock'
+import { useAsync } from '@/hooks/useAsync'
+import { novelApi } from '@/services/novelApi'
+import { IS_LIVE } from '@/services/runtime'
 import { useTasks } from '@/services/taskStore'
 import { cn } from '@/services/utils'
-
-const featured = novels.slice(0, 5)
 
 const features = [
   {
@@ -58,7 +58,20 @@ export function DashboardPage() {
   const [keyword, setKeyword] = useState('')
   const navigate = useNavigate()
   const tasks = useTasks()
+  const { data: overview } = useAsync(async () => {
+    const [novels, recent, libraryStats, activities] = await Promise.all([
+      novelApi.getFeatured(),
+      novelApi.listLibrary(),
+      novelApi.getLibraryStats(),
+      novelApi.getActivities(),
+    ])
+    return { novels, recent, libraryStats, activities }
+  }, [])
   const running = tasks.filter((task) => task.state === 'running' || task.state === 'queued').slice(0, 2)
+  const featured = (overview?.novels ?? []).slice(0, 5)
+  const recentLibrary = (overview?.recent ?? []).slice(0, 3)
+  const stats = overview?.libraryStats ?? { epubs: 0, tasks: 0, queued: 0, verified: 0 }
+  const recentActivities = overview?.activities ?? []
 
   const search = (value?: string) => {
     const query = (value ?? keyword).trim()
@@ -112,7 +125,7 @@ export function DashboardPage() {
           <div className="mt-10 flex flex-wrap items-center gap-x-4 gap-y-2">
             <span className="inline-flex items-center gap-1.5 rounded-full border border-[#DCD4FA] bg-white/60 px-3 py-[5px] text-[10px] text-[#7E7E97] backdrop-blur-sm">
               <Info className="h-3 w-3 text-[#A78BFA]" />
-              交互设计演示，搜索仅过滤样例数据
+              {IS_LIVE ? '已连接插件运行时 · 检索本地索引与已配置书源' : '交互设计演示，搜索仅过滤样例数据'}
             </span>
             <div className="hidden items-center gap-2 text-[10.5px] text-[#9A94B5] md:flex">
               <span className="text-[#B0A9C9]">热门</span>
@@ -196,7 +209,7 @@ export function DashboardPage() {
                 <span>完整性</span>
               </div>
               <div className="divide-y divide-[#F4F2FA]">
-                {library.slice(0, 3).map((item) => (
+                {recentLibrary.map((item) => (
                   <div
                     key={item.id}
                     className="grid cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[10px] px-2 py-[11px] transition hover:bg-[#FBFAFE] sm:grid-cols-[minmax(0,1fr)_92px_74px_96px] sm:gap-4 sm:px-4"
@@ -269,21 +282,21 @@ export function DashboardPage() {
           <Card data-testid="stats" className="p-4">
             <SectionTitle title="书库概览" className="[&_h2]:text-[18px]" />
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <StatTile icon={<BookOpen className="h-4 w-4" />} value={libraryStats.epubs} label="EPUB 文件" />
-              <StatTile icon={<Download className="h-4 w-4" />} value={libraryStats.tasks} label="全部任务" />
-              <StatTile icon={<Clock className="h-4 w-4" />} value={libraryStats.queued} label="运行/排队" />
-              <StatTile icon={<ShieldCheck className="h-4 w-4" />} value={libraryStats.verified} label="通过校验" />
+              <StatTile icon={<BookOpen className="h-4 w-4" />} value={stats.epubs} label="EPUB 文件" />
+              <StatTile icon={<Download className="h-4 w-4" />} value={stats.tasks} label="全部任务" />
+              <StatTile icon={<Clock className="h-4 w-4" />} value={stats.queued} label="运行/排队" />
+              <StatTile icon={<ShieldCheck className="h-4 w-4" />} value={stats.verified} label="通过校验" />
             </div>
             <p className="mt-2.5 flex items-start gap-1.5 rounded-[9px] bg-[#FBFAFE] px-2.5 py-2 text-[9.5px] leading-relaxed text-[#A2A2B6]">
               <Info className="mt-[1px] h-3 w-3 shrink-0 text-[#C4B5FB]" />
-              所有指标为本地模拟数据
+              {IS_LIVE ? '指标来自本地书库索引与任务存储' : '所有指标为本地模拟数据'}
             </p>
           </Card>
 
           <Card data-testid="activity" className="px-6 py-5">
             <SectionTitle title="最近活动" className="[&_h2]:text-[18px]" />
             <div className="mt-4 space-y-4">
-              {activities.map((activity) => (
+              {recentActivities.map((activity) => (
                 <div key={activity.id} className="flex items-start gap-2.5">
                   <span
                     className={cn(

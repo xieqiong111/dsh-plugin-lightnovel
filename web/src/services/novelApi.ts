@@ -8,27 +8,31 @@ import type {
   Novel,
   SearchQuery,
   SourceHealth,
+  VerifyResult,
   Volume,
 } from '@/types'
 import { sleep } from './utils'
 import { taskStore } from './taskStore'
+import { IS_LIVE, apiDownload, apiFetch, type RuntimeStatus } from './runtime'
+
+export { API_MODE, IS_LIVE } from './runtime'
 
 /**
- * 数据访问层（当前为 Mock 实现）。
+ * Single data-access seam for the whole UI.
  *
- * 真实接入时只需替换本文件的实现，保持函数签名不变：
- *   GET  /api/novels?query=&sources=&status=
- *   GET  /api/novels/:id
- *   GET  /api/novels/:id/volumes
- *   GET  /api/tasks?state=
- *   POST /api/tasks
- *   POST /api/tasks/:taskId/cancel | /retry
- *   GET  /api/library?query=
- *   GET  /api/library/stats
- *   GET  /api/status
+ * Mock build (default): deterministic sample data, no network at all.
+ * Live build (VITE_API_MODE=live): every method is an /api/* call served by
+ * server/serve.mjs, which drives the plugin's PluginRuntime directly.
+ *
+ * Endpoint contract:
+ *   GET    /api/status                     GET  /api/activities
+ *   GET    /api/novels?query=&sources=&status=  GET /api/novels/:id
+ *   GET    /api/novels/:id/volumes        GET  /api/tasks?state=
+ *   POST   /api/tasks                     POST /api/tasks/:id/cancel | /retry
+ *   GET    /api/library?query=            GET  /api/library/stats
+ *   POST   /api/library/:id/verify        GET  /api/library/:id/file
+ *   DELETE /api/library/:id               GET  /api/sources
  */
-export const API_MODE: 'mock' | 'live' = 'mock'
-
 export interface SearchResult {
   results: Novel[]
   total: number
@@ -37,8 +41,100 @@ export interface SearchResult {
   mocked: boolean
 }
 
-export const novelApi = {
-  async searchNovels({ keyword, sources: sourceIds, status }: SearchQuery): Promise<SearchResult> {
+export interface NovelApi {
+  searchNovels(query: SearchQuery): Promise<SearchResult>
+  getNovel(id: string): Promise<Novel | undefined>
+  getVolumes(id: string): Promise<Volume[]>
+  listTasks(state?: DownloadTask['state']): Promise<DownloadTask[]>
+  createTask(input: CreateTaskInput): Promise<DownloadTask>
+  cancelTask(id: string): Promise<void>
+  retryTask(id: string): Promise<void>
+  listLibrary(keyword?: string): Promise<LibraryItem[]>
+  getLibraryStats(): Promise<LibraryStats>
+  getActivities(): Promise<ActivityItem[]>
+  getSources(): Promise<SourceHealth[]>
+  verifyFile(id: string): Promise<VerifyResult>
+  getFeatured(): Promise<Novel[]>
+  getStatus(): Promise<RuntimeStatus>
+  downloadFile(id: string, fileName: string): Promise<void>
+  deleteFile(id: string): Promise<void>
+}
+
+const queryString = (values: Record<string, string | undefined>) => {
+  const params = new URLSearchParams()
+  for (const [key, value] of Object.entries(values)) {
+    if (value !== undefined && value !== '') params.set(key, value)
+  }
+  const text = params.toString()
+  return text ? `?${text}` : ''
+}
+
+const liveApi: NovelApi = {
+  searchNovels({ keyword, sources: sourceIds, status }) {
+    return apiFetch<SearchResult>(
+      `/novels${queryString({
+        query: keyword.trim(),
+        sources: sourceIds.join(','),
+        status: status === 'all' ? undefined : status,
+      })}`,
+    )
+  },
+  async getNovel(id) {
+    try {
+      return await apiFetch<Novel>(`/novels/${encodeURIComponent(id)}`)
+    } catch {
+      return undefined
+    }
+  },
+  getVolumes(id) {
+    return apiFetch<Volume[]>(`/novels/${encodeURIComponent(id)}/volumes`)
+  },
+  listTasks(state) {
+    return apiFetch<DownloadTask[]>(`/tasks${queryString({ state })}`)
+  },
+  createTask(input) {
+    return apiFetch<DownloadTask>('/tasks', { method: 'POST', body: JSON.stringify(input) })
+  },
+  async cancelTask(id) {
+    await apiFetch(`/tasks/${encodeURIComponent(id)}/cancel`, { method: 'POST' })
+    taskStore.refresh()
+  },
+  async retryTask(id) {
+    await apiFetch(`/tasks/${encodeURIComponent(id)}/retry`, { method: 'POST' })
+    taskStore.refresh()
+  },
+  listLibrary(keyword = '') {
+    return apiFetch<LibraryItem[]>(`/library${queryString({ query: keyword.trim() })}`)
+  },
+  getLibraryStats() {
+    return apiFetch<LibraryStats>('/library/stats')
+  },
+  getActivities() {
+    return apiFetch<ActivityItem[]>('/activities')
+  },
+  getSources() {
+    return apiFetch<SourceHealth[]>('/sources')
+  },
+  verifyFile(id) {
+    return apiFetch<VerifyResult>(`/library/${encodeURIComponent(id)}/verify`, { method: 'POST' })
+  },
+  async getFeatured() {
+    const result = await liveApi.searchNovels({ keyword: '', sources: [], status: 'all' })
+    return result.results
+  },
+  getStatus() {
+    return apiFetch<RuntimeStatus>('/status')
+  },
+  downloadFile(id, fileName) {
+    return apiDownload(`/library/${encodeURIComponent(id)}/file`, fileName)
+  },
+  async deleteFile(id) {
+    await apiFetch(`/library/${encodeURIComponent(id)}`, { method: 'DELETE' })
+  },
+}
+
+const mockApi: NovelApi = {
+  async searchNovels({ keyword, sources: sourceIds, status }) {
     await sleep(420)
     const query = keyword.trim().toLowerCase()
     const filtered = novels.filter((novel) => {
@@ -58,38 +154,31 @@ export const novelApi = {
       mocked: true,
     }
   },
-
-  async getNovel(id: string): Promise<Novel | undefined> {
+  async getNovel(id) {
     await sleep(260)
     return novels.find((novel) => novel.id === id)
   },
-
-  async getVolumes(id: string): Promise<Volume[]> {
+  async getVolumes(id) {
     await sleep(200)
     return volumesByNovel[id] ?? volumesByNovel['fixture:moon-teahouse']
   },
-
-  async listTasks(state?: DownloadTask['state']): Promise<DownloadTask[]> {
+  async listTasks(state) {
     await sleep(160)
     return taskStore.list(state)
   },
-
-  async createTask(input: CreateTaskInput): Promise<DownloadTask> {
+  async createTask(input) {
     await sleep(280)
     return taskStore.create(input)
   },
-
-  async cancelTask(id: string) {
+  async cancelTask(id) {
     await sleep(180)
     taskStore.cancel(id)
   },
-
-  async retryTask(id: string) {
+  async retryTask(id) {
     await sleep(180)
     taskStore.retry(id)
   },
-
-  async listLibrary(keyword = ''): Promise<LibraryItem[]> {
+  async listLibrary(keyword = '') {
     await sleep(220)
     const query = keyword.trim().toLowerCase()
     if (!query) return library
@@ -97,25 +186,35 @@ export const novelApi = {
       (item) => item.title.toLowerCase().includes(query) || item.fileName.toLowerCase().includes(query),
     )
   },
-
-  async getLibraryStats(): Promise<LibraryStats> {
+  async getLibraryStats() {
     await sleep(120)
     return libraryStats
   },
-
-  async getActivities(): Promise<ActivityItem[]> {
+  async getActivities() {
     await sleep(120)
     return activities
   },
-
-  async getSources(): Promise<SourceHealth[]> {
+  async getSources() {
     await sleep(180)
     return sources
   },
-
-  async verifyFile(id: string) {
+  async verifyFile(id) {
     await sleep(420)
     const item = library.find((entry) => entry.id === id)
     return { ok: true, id, integrity: item?.integrity ?? 'passed' }
   },
+  async getFeatured() {
+    return novels.slice(0, 5)
+  },
+  async getStatus() {
+    return Promise.reject(new Error('Mock 原型没有后端运行时状态'))
+  },
+  async downloadFile() {
+    return Promise.reject(new Error('Mock 原型不提供真实 EPUB 文件'))
+  },
+  async deleteFile() {
+    return Promise.reject(new Error('Mock 原型不会删除文件'))
+  },
 }
+
+export const novelApi: NovelApi = IS_LIVE ? liveApi : mockApi

@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Bell, ChevronRight, ExternalLink, Menu, Sparkles } from 'lucide-react'
 import { cn } from '@/services/utils'
-import { activities } from '@/data/mock'
+import { useAsync } from '@/hooks/useAsync'
+import { novelApi } from '@/services/novelApi'
+import { DEMO, IS_LIVE } from '@/services/runtime'
 
 const routeMeta: Record<string, { group: string; title: string; eyebrow?: string }> = {
   '/': { group: '工作台', title: '工作台' },
@@ -19,6 +21,8 @@ export function Topbar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const location = useLocation()
   const [notifyOpen, setNotifyOpen] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
+  const { data: activityData } = useAsync(() => novelApi.getActivities(), [notifyOpen])
+  const activityItems = activityData ?? []
 
   const meta = routeMeta[location.pathname] ?? { group: '小说详情', title: '小说详情' }
   const title = location.pathname.startsWith('/novel/') ? '小说详情' : meta.title
@@ -52,9 +56,14 @@ export function Topbar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
-        <span className="hidden items-center gap-1.5 rounded-full border border-[#F5E3BE] bg-[#FDF6E8] px-4 py-[6px] text-[11.5px] font-medium text-[#B4791B] md:inline-flex">
-          <span className="h-1.5 w-1.5 rounded-full bg-[#F59E0B]" />
-          交互原型 · 非真实数据
+        <span
+          className={cn(
+            'hidden items-center gap-1.5 rounded-full border px-4 py-[6px] text-[11.5px] font-medium md:inline-flex',
+            IS_LIVE ? 'border-[#D1F0E2] bg-[#ECFDF5] text-[#0B9E74]' : 'border-[#F5E3BE] bg-[#FDF6E8] text-[#B4791B]',
+          )}
+        >
+          <span className={cn('h-1.5 w-1.5 rounded-full', IS_LIVE ? 'bg-[#10B981]' : 'bg-[#F59E0B]')} />
+          {DEMO.badge}
         </span>
 
         <a
@@ -85,18 +94,23 @@ export function Topbar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
             <div className="absolute right-0 top-11 w-[300px] rounded-[18px] border border-[#EFEDF6] bg-white p-3 shadow-[0_24px_60px_-24px_rgba(30,31,53,0.35)] animate-fade-up">
               <div className="flex items-center justify-between px-1 pb-2">
                 <p className="text-[12px] font-semibold text-[#2B2C44]">通知</p>
-                <span className="rounded-full bg-[#F1EDFE] px-2 py-0.5 text-[10px] text-[#6C4AD9]">示例</span>
+                <span className="rounded-full bg-[#F1EDFE] px-2 py-0.5 text-[10px] text-[#6C4AD9]">
+                  {IS_LIVE ? '运行时日志' : '示例'}
+                </span>
               </div>
               <div className="space-y-1">
-                {activities.slice(0, 3).map((item) => (
+                {activityItems.slice(0, 3).map((item) => (
                   <div key={item.id} className="rounded-xl px-2 py-2 transition hover:bg-[#FBFAFE]">
                     <p className="text-[11.5px] leading-snug text-[#3F4058]">{item.title}</p>
                     <p className="mt-1 text-[10px] text-[#A6A6B8]">{item.time}</p>
                   </div>
                 ))}
+                {activityItems.length === 0 && (
+                  <p className="px-2 py-3 text-[10.5px] text-[#A6A6B8]">暂无活动记录。</p>
+                )}
               </div>
               <p className="mt-2 border-t border-[#F3F1F9] px-1 pt-2 text-[10px] leading-relaxed text-[#A6A6B8]">
-                通知为本地演示数据，接入真实 API 后将展示任务与书源事件。
+                {IS_LIVE ? '来自插件结构化日志（GET /api/activities）。' : '通知为本地演示数据。'}
               </p>
             </div>
           )}

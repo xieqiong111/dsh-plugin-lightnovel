@@ -4,16 +4,16 @@
 
 ## 1. 准备目录
 
-在飞牛 NAS 上建一个共享文件夹，例如 `/vol1/1000/lightnovel`，并确认其所有者 uid:gid（一般是 `1000:1000`）：
+在飞牛 NAS 上建一个共享文件夹（下称 `$LN_DATA_DIR`），并确认其所有者 uid:gid：
 
 ```bash
-mkdir -p /vol1/1000/lightnovel/{library,tasks,logs,index,dsh-home}
+mkdir -p "$LN_DATA_DIR"/{library,tasks,logs,index,dsh-home}
 ```
 
 容器会把这个目录挂载到 `/data`。目录布局：
 
 ```
-/vol1/1000/lightnovel/
+$LN_DATA_DIR/
 ├── library/          # 最终 EPUB（可在 SMB 中直接看到）
 │   ├── index.json
 │   ├── 星海旅途/
@@ -34,13 +34,12 @@ cp .env.example .env
 至少修改：
 
 ```dotenv
-LN_DATA_DIR=/vol1/1000/lightnovel
-LN_UID=1001
-LN_GID=1001
+LN_DATA_DIR=/path/to/lightnovel
+LN_UID=<uid>
+LN_GID=<gid>
 ```
 
 > **`LN_UID` / `LN_GID` 必须用宿主机真实值**：先执行 `id -u` / `id -g`。
-> 实测某台飞牛 NAS 的部署账号是 `1001:1001`（不是常见的 1000）。
 > 写错会导致插件 `mkdir` 报 `EACCES`，以及 Dart 核心无法写日志（见排障表）。
 
 无外网 / 不想访问第三方站点时：
@@ -121,7 +120,161 @@ docker compose --profile verify run --rm verify
 > `["--profile","nas","web"]`（Web UI，端口 `LN_WEB_PORT`），
 > 或用 `docker compose run --rm lightnovel --profile nas headless "你的任务"` 单次执行。
 
-## 4. 验证 Dart 核心
+## 4. Web 管理台（BFF + Live 前端）
+
+除了 DSH Agent，本仓库还提供一个**单进程 Web 管理台**：`server/serve.mjs` 同时托管 `web/dist` 静态页面与 `/api/*`，直接调用插件的 `PluginRuntime`。它不启动 DSH CLI、不调用 LLM，因此不消耗 API key，也不影响 Agent 侧配置。
+
+- 默认端口：宿主机 `5273` → 容器 `8080`
+- 默认地址：`http://<NAS 地址>:5273/`
+- 前端构建模式：`VITE_API_MODE=live`（数据来自 BFF，不再注入 Mock）
+- 容器基础镜像：`node:24-bookworm-slim`（**不要用 Alpine**：预编译 Dart AOT 依赖 glibc，musl 上无法执行；已有完整镜像时可用 `dsh-plugin-lightnovel:1.0.0`）
+- 运行用户与数据目录 owner 一致（建议 `1001:1001`，以 `id -u` / `id -g` 为准）
+- 只读挂载代码与构建产物；只有 `$LN_DATA_DIR` 可写
+- 复用外部网络 `dsh-lightnovel-net`，避免 NAS 上 Docker 地址池耗尽
+
+### 4.1 主机目录
+
+建议单独一个目录（下称 `$LN_WEB_DIR`），不要覆盖旧静态部署：
+
+```text
+$LN_WEB_DIR/
+├── server/                 # BFF（只读挂载）
+├── dist/                   # 插件编译产物（只读）
+├── node_modules/           # 运行时依赖（只读；cheerio / opencc-js）
+├── package.json            # ESM 类型声明（只读）
+├── vendor/                 # Dart 源码与 fixture 依赖（只读）
+├── test/fixtures/          # 离线书源（只读）
+├── web/dist/               # Live 前端产物（只读）
+├── bnp_headless            # linux/amd64 Dart 可执行文件（只读）
+├── docker-compose.web.yml
+└── data/                   # 可写：library / tasks / logs / index
+```
+
+### 4.2 准备构建产物
+
+在开发机（Node 24 + Dart）上：
+
+```bash
+npm ci
+npm run build                         # 插件 TypeScript -> dist/
+cd web && VITE_API_MODE=live npm run build && cd ..
+```
+
+把 `server/`、`dist/`、`package.json`、`vendor/`、`test/fixtures/`、`web/dist/` 与 `docker-compose.web.yml` 同步到 `$LN_WEB_DIR`。`node_modules/` 与 `bnp_headless` 建议直接复用已有的插件镜像，避免在 NAS 上重新编译 Dart：
+
+```bash
+docker create --name ln-web-deps dsh-plugin-lightnovel:1.0.0
+docker cp ln-web-deps:/opt/lightnovel/node_modules "$LN_WEB_DIR/"
+docker cp ln-web-deps:/opt/bnp/bnp_headless "$LN_WEB_DIR/"
+docker rm ln-web-deps
+```
+
+若没有该镜像，也可以构建根目录的 `Dockerfile`（会编译 linux/amd64 的 `bnp_headless`），或在 Node 24 容器内执行 `npm ci --omit=dev` 生成 `node_modules`。
+
+### 4.3 配置与启动
+
+在 `$LN_WEB_DIR/.env`：
+
+```dotenv
+LN_DATA_DIR=/path/to/lightnovel-web-data
+LN_UID=<id -u 的结果>
+LN_GID=<id -g 的结果>
+LN_WEB_PORT=5273
+LN_WEB_IMAGE=node:24-bookworm-slim
+# 或复用已构建的完整镜像（自带 Node + Dart）：
+# LN_WEB_IMAGE=dsh-plugin-lightnovel:1.0.0
+LN_WEB_NETWORK=dsh-lightnovel-net
+
+# 只读/离线部署建议：
+LN_ENABLED_SOURCES=fixture
+LN_OFFLINE_ONLY=true
+
+# 需要公网书源时改为：
+# LN_ENABLED_SOURCES=bilinovel,fixture
+# LN_OFFLINE_ONLY=false
+
+# 可选：启用 API token（强烈建议对局域网开放时设置）
+# LN_BFF_TOKEN=<openssl rand -hex 24>
+
+# 可选：允许删除书库文件；默认 false
+# LN_BFF_ALLOW_DELETE=true
+```
+
+创建网络并启动：
+
+```bash
+docker network inspect dsh-lightnovel-net >/dev/null 2>&1   || docker network create --driver bridge --subnet 10.99.77.0/24        --gateway 10.99.77.1 dsh-lightnovel-net
+
+cd "$LN_WEB_DIR"
+docker compose -f docker-compose.web.yml up -d
+docker compose -f docker-compose.web.yml ps
+```
+
+如果 5273 已被旧的纯静态容器占用，先停掉并改名保留回滚，不要直接删除：
+
+```bash
+docker stop lightnovel-studio-web
+docker rename lightnovel-studio-web lightnovel-studio-web-static-old
+```
+
+### 4.4 验证
+
+```bash
+curl -s http://127.0.0.1:5273/api/health
+# {"ok":true,"dart":true,...}
+
+curl -s http://127.0.0.1:5273/api/status
+# 应包含 "apiMode":"live"，dart.runner 只有 basename（不泄漏绝对路径）
+
+curl -sI http://127.0.0.1:5273/ | head -1
+# HTTP/1.1 200 OK，Content-Type: text/html
+```
+
+浏览器打开 `http://<NAS 地址>:5273/`：
+
+- 顶栏显示「实时数据」，不再显示 Mock 胶囊；
+- 首页精选来自本地索引 + 离线源，空关键词不会触网；
+- 搜索「星海」应命中「星海旅途」；
+- 详情 → 选卷 → 创建任务 → 任务页出现真实进度 → 书库出现 EPUB；
+- 书源页显示真实 registry，延迟/成功率为不可用而不是假数字。
+
+若启用了 `LN_BFF_TOKEN`，在「系统设置」填入同一 token；未填时所有 `/api/*` 返回 401，页面会显示错误提示。容器 healthcheck 会自动带上该 token。
+
+### 4.5 升级与回滚
+
+```bash
+# 前端更新
+cd web && VITE_API_MODE=live npm run build && cd ..
+docker compose -f docker-compose.web.yml restart web
+
+# BFF 更新（server/ 或 dist/）
+docker compose -f docker-compose.web.yml restart web
+
+# 回滚到旧静态版
+docker stop lightnovel-studio-web
+docker rename lightnovel-studio-web lightnovel-studio-web-live-bak
+docker rename lightnovel-studio-web-static-old lightnovel-studio-web
+docker start lightnovel-studio-web
+```
+
+日志：
+
+```bash
+docker logs -f lightnovel-studio-web
+docker exec lightnovel-studio-web sh -c 'ls -l /data/logs'
+```
+
+### 4.6 端到端验证脚本
+
+在开发机仓库根运行：
+
+```bash
+npm run verify:web
+```
+
+它会用随机端口 + 临时数据目录启动一个隔离 BFF，覆盖 health、status、精选、搜索、详情、分卷、建任务、轮询、书库、EPUB ZIP/mimetype、sha256 sidecar、verify、404/405/400/413、静态托管、SPA fallback、token 与 DELETE，共 49 项断言。需要 Node 24 与 Dart；`LN_DART_SDK` / `PUB_CACHE` 未设置时会按本机默认探测。
+
+## 5. 验证 Dart 核心
 
 ```bash
 docker compose run --rm --entrypoint /bin/sh lightnovel -c \
@@ -132,7 +285,7 @@ docker compose run --rm --entrypoint /bin/sh lightnovel -c \
 
 应输出 `{"type":"result", ... "data":{"novel":{...}}}`。
 
-## 5. 运行一次完整闭环（离线）
+## 6. 运行一次完整闭环（离线）
 
 ```bash
 docker compose run --rm --entrypoint /opt/bnp/bnp_headless lightnovel \
@@ -146,7 +299,7 @@ docker compose run --rm --entrypoint /opt/bnp/bnp_headless lightnovel \
 
 生成的 EPUB 应出现在 `/data/tasks/smoke/星海旅途/`。
 
-## 6. 换成自己的书源
+## 7. 换成自己的书源
 
 `fixture` 书源是结构化 JSON，可直接改成自己的离线数据；挂载覆盖即可（只读）：
 
@@ -182,7 +335,7 @@ docker run --rm --network dsh-lightnovel-net --user "$(id -u):$(id -g)" \
 # 只读预检（不下载）：额外加 -e LN_LIVE_ALLOW_DOWNLOAD=0
 ```
 
-## 7. 运维
+## 8. 运维
 
 ```bash
 docker compose logs --tail=200 lightnovel          # 结构化日志
@@ -191,13 +344,13 @@ docker compose restart lightnovel                  # 未完成任务自动标记
 docker compose down && docker compose up -d --build  # 升级
 ```
 
-- **备份**：只需备份宿主机 `/vol1/1000/lightnovel`（含 library + 任务状态）。
+- **备份**：只需备份宿主机 `$LN_DATA_DIR`（含 library + 任务状态）。
 - **权限**：若 SMB 中看不到 EPUB 或出现 `EACCES`，用 `id -u` / `id -g` 核对 `LN_UID`/`LN_GID` 与共享文件夹所有者。
 - **限速**：默认同主机 4 秒一次，请勿调低；`LN_RESPECT_ROBOTS` 保持 `true`。
 - **Dart 日志**：上游核心日志固定在 `<dataDir>/logs/bili_novel.log`（由 bridge 注入的 `BNP_LOG_FILE` 绝对路径指定），不会污染 vendor 目录或 EPUB 书库。
 - **完整性**：把 `index.json` 与 `.sha256` 一起备份，可用 `sha256sum -c` 校验。
 
-## 8. 排障
+## 9. 排障
 
 | 现象 | 原因 / 处理 |
 |------|-------------|

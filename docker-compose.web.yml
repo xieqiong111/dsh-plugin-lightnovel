@@ -1,0 +1,114 @@
+# Lightnovel Studio web console — generic Docker Compose (Linux hosts).
+#
+# This service is the BFF + static host in one process:
+#   node server/serve.mjs   ->   /api/*  +  web/dist
+#
+# It does NOT run the DSH agent loop. The plugin's six Cordis tools remain the
+# agent-facing surface; this console drives the same PluginRuntime over HTTP.
+#
+# Prerequisites on the host (all paths are relative to this repository root):
+#   1. node_modules      npm ci --omit=dev
+#   2. dist              npm run build            (TypeScript plugin)
+#   3. web/dist          cd web && VITE_API_MODE=live npm run build
+#   4. bnp_headless      linux binary from vendor/bili_novel_packer:
+#                        dart compile exe bin/headless.dart -o build/bnp_headless
+#                        (optional: without it the UI works, downloads report
+#                         dart.available=false instead of pretending to succeed)
+#   5. Docker network    docker network create --driver bridge \
+#                          --subnet 10.99.77.0/24 --gateway 10.99.77.1 \
+#                          dsh-lightnovel-net
+#
+# Then: docker compose -f docker-compose.web.yml up -d
+#
+# All values can be overridden from .env or the shell. Never commit a real
+# token, host name or absolute private path here.
+services:
+  web:
+    # Debian slim, not Alpine: the prebuilt Dart AOT binary is linked against
+    # glibc and cannot execute on musl. Use LN_WEB_IMAGE=dsh-plugin-lightnovel:1.0.0
+    # to reuse an image that already ships Node + the Dart core.
+    image: "${LN_WEB_IMAGE:-node:24-bookworm-slim}"
+    platform: "${LN_WEB_PLATFORM:-linux/amd64}"
+    container_name: "${LN_WEB_CONTAINER_NAME:-lightnovel-studio-web}"
+    # Node images have no entrypoint of their own; explicit node keeps the
+    # command readable and works for any Node 24 based image.
+    entrypoint: ["node"]
+    command: ["server/serve.mjs"]
+    working_dir: /opt/lightnovel
+    user: "${LN_UID:-1001}:${LN_GID:-1001}"
+    restart: unless-stopped
+
+    environment:
+      LN_BFF_HOST: 0.0.0.0
+      LN_BFF_PORT: 8080
+      LN_WEB_DIST: /opt/lightnovel/web/dist
+      LN_BFF_DATA_DIR: /data
+      LN_BFF_LIBRARY_DIR: /data/library
+      LN_FIXTURES_DIR: /opt/lightnovel/test/fixtures
+      LN_DART_BINARY: /opt/bnp/bnp_headless
+      LN_DART_PROJECT_DIR: /opt/lightnovel/vendor/bili_novel_packer
+      # Optional shared-secret gate for every /api/* request. Empty = disabled.
+      LN_BFF_TOKEN: "${LN_BFF_TOKEN:-}"
+      # Destructive DELETE /api/library/:id stays off unless explicitly opted in.
+      LN_BFF_ALLOW_DELETE: "${LN_BFF_ALLOW_DELETE:-false}"
+      LN_BFF_CORS_ORIGIN: "${LN_BFF_CORS_ORIGIN:-}"
+      LN_ENABLED_SOURCES: "${LN_ENABLED_SOURCES:-bilinovel,fixture}"
+      LN_OFFLINE_ONLY: "${LN_OFFLINE_ONLY:-false}"
+      LN_RESPECT_ROBOTS: "${LN_RESPECT_ROBOTS:-true}"
+      LN_REQUEST_INTERVAL_MS: "${LN_REQUEST_INTERVAL_MS:-4000}"
+      LN_MAX_CONCURRENT_DOWNLOADS: "${LN_MAX_CONCURRENT_DOWNLOADS:-1}"
+      LN_LOG_LEVEL: "${LN_LOG_LEVEL:-info}"
+
+    ports:
+      - "${LN_WEB_PORT:-5273}:8080"
+
+    volumes:
+      # Mutable state: library EPUBs, task records, logs and the local index.
+      - "${LN_DATA_DIR:-./data}:/data"
+      # Code and build artefacts are mounted read-only; rebuild on the host and
+      # restart the container, no image rebuild needed.
+      - "./server:/opt/lightnovel/server:ro"
+      - "./dist:/opt/lightnovel/dist:ro"
+      # Runtime-only dependencies (cheerio/opencc-js). Do not mount dev deps
+      # from another architecture; run npm ci on the Docker host instead.
+      - "./node_modules:/opt/lightnovel/node_modules:ro"
+      - "./package.json:/opt/lightnovel/package.json:ro"
+      - "./vendor:/opt/lightnovel/vendor:ro"
+      - "./test/fixtures:/opt/lightnovel/test/fixtures:ro"
+      - "./web/dist:/opt/lightnovel/web/dist:ro"
+      - "${LN_DART_BINARY_HOST:-./bnp_headless}:/opt/bnp/bnp_headless:ro"
+
+    healthcheck:
+      # Works with or without LN_BFF_TOKEN: the token is read from the
+      # container environment, never embedded in this file.
+      test:
+        - "CMD"
+        - "node"
+        - "-e"
+        - "const h=process.env.LN_BFF_TOKEN?{'x-ln-token':process.env.LN_BFF_TOKEN}:{};fetch('http://127.0.0.1:8080/api/health',{headers:h}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    networks:
+      - default
+
+networks:
+  default:
+    # Reuse an existing network to avoid exhausting Docker's address pools
+    # on NAS installations that already run many stacks.
+    external: true
+    name: "${LN_WEB_NETWORK:-dsh-lightnovel-net}"

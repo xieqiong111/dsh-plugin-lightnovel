@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import {
   ArrowUpDown,
   BookOpen,
+  Download,
   FileText,
   FolderOpen,
   Grid3X3,
@@ -17,10 +18,11 @@ import { Modal } from '@/components/common/Modal'
 import { PageHeader } from '@/components/common/PageHeader'
 import { CoverArt } from '@/components/novel/CoverArt'
 import { useToast } from '@/components/common/Toast'
-import { library, libraryStats } from '@/data/mock'
+import { library as mockLibrary } from '@/data/mock'
 import { novelApi } from '@/services/novelApi'
-import type { LibraryItem } from '@/types'
-import { cn } from '@/services/utils'
+import { DEMO, IS_LIVE } from '@/services/runtime'
+import type { LibraryItem, LibraryStats } from '@/types'
+import { cn, formatBytes } from '@/services/utils'
 
 type Integrity = LibraryItem['integrity']
 type SortKey = 'recent' | 'name' | 'size'
@@ -37,12 +39,23 @@ export function LibraryPage() {
   const [keyword, setKeyword] = useState('')
   const [filter, setFilter] = useState<'all' | Integrity>('all')
   const [sort, setSort] = useState<SortKey>('recent')
-  const [items, setItems] = useState<LibraryItem[]>(library)
+  const [items, setItems] = useState<LibraryItem[]>(IS_LIVE ? [] : mockLibrary)
+  const [stats, setStats] = useState<LibraryStats | null>(null)
   const [detail, setDetail] = useState<LibraryItem | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<LibraryItem | null>(null)
+  const [busy, setBusy] = useState<string | null>(null)
+
+  const refresh = async (query = keyword) => {
+    const [list, overview] = await Promise.all([novelApi.listLibrary(query), novelApi.getLibraryStats()])
+    setItems(list)
+    setStats(overview)
+  }
 
   useEffect(() => {
-    novelApi.listLibrary(keyword).then(setItems)
+    void refresh(keyword).catch(() => {
+      /* keep last known snapshot; the empty state explains a cold/empty library */
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [keyword])
 
   const visible = useMemo(() => {
@@ -54,11 +67,51 @@ export function LibraryPage() {
   }, [items, filter, sort])
 
   const verify = async (item: LibraryItem) => {
-    await novelApi.verifyFile(item.id)
-    setItems((prev) =>
-      prev.map((entry) => (entry.id === item.id ? { ...entry, integrity: 'passed' as Integrity } : entry)),
-    )
-    toast({ tone: 'success', title: '完整性校验通过', description: `${item.fileName} · SHA-256 与清单一致（演示）。` })
+    setBusy(item.id)
+    try {
+      const result = await novelApi.verifyFile(item.id)
+      setItems((prev) =>
+        prev.map((entry) => (entry.id === item.id ? { ...entry, integrity: result.integrity } : entry)),
+      )
+      if (result.ok) {
+        toast({ tone: 'success', title: '完整性校验通过', description: `${item.fileName} · SHA-256 与清单一致。` })
+      } else {
+        toast({ tone: 'warning', title: '校验未通过', description: result.problems?.join('；') || '文件与清单不一致。' })
+      }
+      void refresh().catch(() => {})
+    } catch (error) {
+      toast({ tone: 'warning', title: '校验失败', description: error instanceof Error ? error.message : '未知错误' })
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const download = async (item: LibraryItem) => {
+    setBusy(item.id)
+    try {
+      await novelApi.downloadFile(item.id, item.fileName)
+      toast({ tone: 'success', title: '已开始下载', description: item.fileName })
+    } catch (error) {
+      toast({ tone: 'warning', title: '下载不可用', description: error instanceof Error ? error.message : '未知错误' })
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const remove = async (item: LibraryItem) => {
+    setBusy(item.id)
+    try {
+      await novelApi.deleteFile(item.id)
+      setItems((prev) => prev.filter((entry) => entry.id !== item.id))
+      setDeleteTarget(null)
+      setDetail(null)
+      toast({ tone: 'success', title: '已从书库移除', description: item.fileName })
+      void refresh().catch(() => {})
+    } catch (error) {
+      toast({ tone: 'warning', title: '删除失败', description: error instanceof Error ? error.message : '未知错误' })
+    } finally {
+      setBusy(null)
+    }
   }
 
   return (
@@ -66,14 +119,19 @@ export function LibraryPage() {
       <PageHeader
         eyebrow="Local library"
         title="我的书库"
-        description="管理已生成的 EPUB 文件：检索、排序、完整性校验与删除。演示环境使用固定的本地样例数据。"
+        description={
+          IS_LIVE
+            ? '管理插件实际生成的 EPUB：检索、下载、SHA-256 完整性校验与删除（删除需服务端显式开启）。'
+            : '管理已生成的 EPUB 文件：检索、排序、完整性校验与删除。演示环境使用固定的本地样例数据。'
+        }
         actions={
           <>
+            <Badge tone={IS_LIVE ? 'green' : 'amber'} className="h-7 px-3">{DEMO.label}</Badge>
             <Button
               variant="secondary"
               size="sm"
               icon={<Upload className="h-3.5 w-3.5" />}
-              onClick={() => toast({ tone: 'warning', title: '导入功能占位', description: 'POST /api/library/import 尚未实现，暂不支持上传本地 EPUB。' })}
+              onClick={() => toast({ tone: 'warning', title: '导入功能尚未实现', description: 'BFF 暂不提供 /api/library/import，暂不支持上传本地 EPUB。' })}
             >
               导入 EPUB
             </Button>
@@ -100,10 +158,10 @@ export function LibraryPage() {
       />
 
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <MiniStat icon={<BookOpen className="h-4 w-4" />} value={libraryStats.epubs} label="EPUB 文件" />
-        <MiniStat icon={<FolderOpen className="h-4 w-4" />} value={library.length} label="样例文件" />
-        <MiniStat icon={<ShieldCheck className="h-4 w-4" />} value={libraryStats.verified} label="通过校验" />
-        <MiniStat icon={<FileText className="h-4 w-4" />} value="13.7 MB" label="占用空间" />
+        <MiniStat icon={<BookOpen className="h-4 w-4" />} value={stats?.epubs ?? items.length} label="EPUB 文件" />
+        <MiniStat icon={<FolderOpen className="h-4 w-4" />} value={items.length} label={IS_LIVE ? '当前列表' : '样例文件'} />
+        <MiniStat icon={<ShieldCheck className="h-4 w-4" />} value={stats?.verified ?? items.filter((item) => item.integrity === 'passed').length} label="通过校验" />
+        <MiniStat icon={<FileText className="h-4 w-4" />} value={stats?.bytes !== undefined ? formatBytes(stats.bytes) : '—'} label="占用空间" />
       </div>
 
       <Card className="mb-5 flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
@@ -313,15 +371,24 @@ export function LibraryPage() {
               ))}
             </div>
 
-            <div className="mt-4 flex gap-2">
-              <Button variant="primary" size="sm" icon={<ShieldCheck className="h-3.5 w-3.5" />} onClick={() => verify(detail)}>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button variant="primary" size="sm" icon={<ShieldCheck className="h-3.5 w-3.5" />} loading={busy === detail.id} onClick={() => verify(detail)}>
                 校验完整性
               </Button>
               <Button
                 variant="secondary"
                 size="sm"
+                icon={<Download className="h-3.5 w-3.5" />}
+                loading={busy === detail.id}
+                onClick={() => download(detail)}
+              >
+                下载 EPUB
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
                 icon={<FolderOpen className="h-3.5 w-3.5" />}
-                onClick={() => toast({ tone: 'info', title: '打开目录为占位', description: '浏览器无法直接访问服务器文件系统。' })}
+                onClick={() => toast({ tone: 'info', title: '打开目录为占位', description: '浏览器无法直接访问服务器文件系统，请使用「下载 EPUB」。' })}
               >
                 打开目录
               </Button>
@@ -345,14 +412,16 @@ export function LibraryPage() {
               variant="danger"
               size="sm"
               icon={<Trash2 className="h-3.5 w-3.5" />}
+              loading={busy === deleteTarget?.id}
               onClick={() => {
-                setDeleteTarget(null)
-                setDetail(null)
-                toast({
-                  tone: 'warning',
-                  title: '演示模式：未真正删除',
-                  description: 'DELETE /api/library/:id 需后端 confirm: true 二次确认。',
-                })
+                if (!deleteTarget) return
+                if (IS_LIVE) {
+                  void remove(deleteTarget)
+                } else {
+                  setDeleteTarget(null)
+                  setDetail(null)
+                  toast({ tone: 'warning', title: '演示模式：未真正删除', description: '切换到 live 模式后由 DELETE /api/library/:id 处理（需服务端开启）。' })
+                }
               }}
             >
               确认删除
@@ -361,7 +430,9 @@ export function LibraryPage() {
         }
       >
         <div className="px-6 py-5 text-[11.5px] leading-relaxed text-[#6B6B85]">
-          将从书库移除「{deleteTarget?.fileName}」。演示环境不会修改磁盘文件，仅关闭弹窗并提示。
+          {IS_LIVE
+            ? `将调用 DELETE /api/library/:id 移除「${deleteTarget?.fileName}」的索引与磁盘文件。该操作需在服务端设置 LN_BFF_ALLOW_DELETE=true，未开启时会返回 403。`
+            : `将从书库移除「${deleteTarget?.fileName}」。演示环境不会修改磁盘文件，仅关闭弹窗并提示。`}
         </div>
       </Modal>
     </div>

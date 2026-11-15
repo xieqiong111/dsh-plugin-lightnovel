@@ -18,6 +18,7 @@ import { CoverArt } from '@/components/novel/CoverArt'
 import { VolumeSelector } from '@/components/novel/VolumeSelector'
 import { useToast } from '@/components/common/Toast'
 import { novelApi } from '@/services/novelApi'
+import { IS_LIVE } from '@/services/runtime'
 import { taskStore } from '@/services/taskStore'
 import type { Novel, Volume } from '@/types'
 import { cn } from '@/services/utils'
@@ -61,25 +62,29 @@ export function NovelDetailPage() {
     [selected, volumes],
   )
 
-  const createTask = () => {
+  const createTask = async () => {
     if (!novel) return
     if (selected.length === 0) {
       toast({ tone: 'warning', title: '请至少选择一个分卷', description: '分卷是 EPUB 打包的最小单位。' })
       return
     }
-    taskStore.create({
-      bookId: novel.id,
-      volumes: selected,
-      volumeNames: selectedNames,
-      combine,
-      addChapterTitle,
-    })
-    toast({
-      tone: 'success',
-      title: `已创建下载任务：${novel.title}`,
-      description: `${selectedNames.length} 卷 · ${combine ? '合并为单一 EPUB' : '每卷独立生成'}，可在任务页查看进度。`,
-    })
-    navigate('/tasks')
+    try {
+      await taskStore.create({
+        bookId: novel.id,
+        volumes: selected,
+        volumeNames: selectedNames,
+        combine,
+        addChapterTitle,
+      })
+      toast({
+        tone: 'success',
+        title: `已创建下载任务：${novel.title}`,
+        description: `${selectedNames.length} 卷 · ${combine ? '合并为单一 EPUB' : '每卷独立生成'}，可在任务页查看进度。`,
+      })
+      navigate('/tasks')
+    } catch (error) {
+      toast({ tone: 'warning', title: '任务创建失败', description: error instanceof Error ? error.message : '未知错误' })
+    }
   }
 
   if (notFound) {
@@ -88,7 +93,7 @@ export function NovelDetailPage() {
         <EmptyState
           icon={<BookOpen className="h-6 w-6" />}
           title="未找到这本小说"
-          description="该 ID 不在当前演示数据中。返回搜索页试试其他关键词。"
+          description={IS_LIVE ? '该书籍 ID 不在插件本地索引或已配置书源中。返回搜索页换个关键词，或用已知 ID 重试。' : '该 ID 不在当前演示数据中。返回搜索页试试其他关键词。'}
           action={
             <Link to="/search">
               <Button variant="primary" size="sm">
@@ -131,15 +136,25 @@ export function NovelDetailPage() {
             小说详情
           </span>
         }
-        description="确认分卷与打包选项后创建异步下载任务。数据来自本地示例，下载不会写入真实书库。"
+        description={
+          IS_LIVE
+            ? '确认分卷与打包选项后创建异步下载任务，由插件 Dart 核心抓取并生成真实 EPUB 写入书库。'
+            : '确认分卷与打包选项后创建异步下载任务。数据来自本地示例，下载不会写入真实书库。'
+        }
         actions={
           <>
-            <Badge tone="amber">{novel.source} · 示例</Badge>
+            <Badge tone={IS_LIVE ? 'green' : 'amber'}>{IS_LIVE ? `${novel.source} · 实时` : `${novel.source} · 示例`}</Badge>
             <Button
               variant="secondary"
               size="sm"
               icon={<Share2 className="h-3.5 w-3.5" />}
-              onClick={() => toast({ tone: 'info', title: '分享链接已复制（演示）', description: '真实环境将复制当前页面 URL。' })}
+              onClick={() => {
+                const url = window.location.href
+                if (navigator.clipboard?.writeText) {
+                  void navigator.clipboard.writeText(url).catch(() => {})
+                }
+                toast({ tone: 'info', title: '分享链接已复制', description: IS_LIVE ? '链接指向当前实时数据详情页（HashRouter）。' : '演示原型：链接指向当前样例详情页。' })
+              }}
             >
               分享
             </Button>
@@ -161,8 +176,8 @@ export function NovelDetailPage() {
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge tone={novel.status === 'completed' ? 'green' : 'violet'}>
-                {novel.status === 'completed' ? '已完结' : '连载中'}
+              <Badge tone={novel.status === 'completed' ? 'green' : novel.status === 'ongoing' ? 'violet' : 'gray'}>
+                {novel.status === 'completed' ? '已完结' : novel.status === 'ongoing' ? '连载中' : novel.statusText || '状态未知'}
               </Badge>
               <Badge tone="gray">{novel.source}</Badge>
               <Badge tone="violet" className="bg-white/70">
@@ -179,7 +194,7 @@ export function NovelDetailPage() {
             <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[10.5px] text-[#7A7A92]">
               <span className="flex items-center gap-1.5">
                 <Star className="h-3 w-3 text-[#F59E0B]" />
-                {novel.rating.toFixed(1)} 评分
+                {novel.rating > 0 ? `${novel.rating.toFixed(1)} 评分` : '暂无评分'}
               </span>
               <span className="flex items-center gap-1.5">
                 <Layers className="h-3 w-3 text-[#A78BFA]" />
@@ -284,7 +299,9 @@ export function NovelDetailPage() {
               <MetaRow label="分卷接口" value="GET /api/novels/:id/volumes" mono />
             </div>
             <p className="mt-3 rounded-[8px] bg-[#FDF8EC] px-2.5 py-2 text-[9.5px] leading-relaxed text-[#B4791B]">
-              上述接口在仓库中尚未实现，当前结果显示自 Mock 层。
+              {IS_LIVE
+                ? '上述接口由 server/serve.mjs 提供，直接调用 PluginRuntime，结果来自插件书源与本地索引。'
+                : '上述接口在当前 Mock 原型中尚未实现，结果来自本地演示数据。'}
             </p>
           </Card>
         </div>

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/services/utils'
 import { useTasks } from '@/services/taskStore'
+import { IS_LIVE } from '@/services/runtime'
 
 const workspaceLinks = [
   { to: '/', label: '工作台', icon: Home, end: true },
@@ -119,8 +120,8 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
               </div>
             </div>
             <div className="mt-2.5 flex items-center gap-1.5 text-[10px] text-[#9193BD]">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#FBBF24]" />
-              UI 演示模式
+              <span className={`h-1.5 w-1.5 rounded-full ${IS_LIVE ? 'bg-[#34D399]' : 'bg-[#FBBF24]'}`} />
+              {IS_LIVE ? 'Live · 实时数据' : 'UI 演示模式'}
             </div>
           </div>
           <p className="mt-4 text-center text-[7.5px] font-medium uppercase tracking-[0.3em] text-[#5E608A]">

@@ -80,20 +80,79 @@ dsh --profile myprofile --dump-config | grep -A 20 "== dsh-plugin-lightnovel"
 
 ---
 
-## Web 前端（交互原型）
+## Web 管理台（Mock / Live 双模式）
 
 仓库内 [`web/`](./web) 是一套独立的 React + TypeScript + Vite + Tailwind 前端，按设计稿还原「轻小说管理中心」工作台，覆盖 Dashboard、搜索发现、小说详情、下载任务、我的书库、书源状态、自动追更、统计分析、系统设置九个页面。
 
+同一个前端有两种构建模式，默认仍是可离线托管的纯静态原型：
+
+| 模式 | 构建 | 数据来源 | 用途 |
+|---|---|---|---|
+| Mock（默认） | `npm run build` | `web/src/data/mock.ts` + 2.6s 演示计时器 | 纯静态预览、视觉验收，无需后端 |
+| Live | `VITE_API_MODE=live npm run build` | `server/serve.mjs` 的 `/api/*` → `PluginRuntime` | 真实搜索、详情、分卷、下载、EPUB 书库 |
+
 ```bash
-cd web
-npm install
-npm run dev      # http://localhost:5173
-npm run build    # 产物在 web/dist/
+# 1. 插件与 Dart 核心
+npm ci && npm run build
+cd vendor/bili_novel_packer && dart pub get \
+  && dart compile exe bin/headless.dart -o build/bnp_headless && cd ../..
+
+# 2. Live 前端 + BFF
+cd web && VITE_API_MODE=live npm run build && cd ..
+LN_BFF_DATA_DIR="$PWD/.local-web-data" node server/serve.mjs
+# http://127.0.0.1:5273/
+```
+
+BFF 是一个零依赖 Node HTTP 进程：同端口托管 `web/dist` 与 `/api/*`，直接 `new PluginRuntime`，不复制业务逻辑、不调用 LLM、不经过 DSH CLI。它同时支持只读静态预览（未构建前端时会输出构建指引）与完整下载闭环。
+
+### API 契约
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| GET | `/api/health` | `{ok, dart, uptime}`，容器 healthcheck 使用 |
+| GET | `/api/status` | 运行时状态、书源、Dart runner（仅 basename）、书库统计、`features` |
+| GET | `/api/novels?query=&sources=&status=&limit=` | 空 query = 首页精选，只读本地索引 + 离线源，**不触网**；有 query 才搜索并如实返回 `degradedSources` |
+| GET | `/api/novels/:id` | 详情；Dart 可用时带分卷，失败回退本地索引 |
+| GET | `/api/novels/:id/volumes` | 分卷，`id` 形如 `${bookId}#v${index}` |
+| GET / POST | `/api/tasks` | 任务列表 / 创建（`volumeSelector` 还原 Dart 选择器） |
+| POST | `/api/tasks/:id/cancel` \| `/retry` | 取消 / 重试 |
+| GET | `/api/library?query=` | EPUB 书库索引 |
+| GET | `/api/library/stats` | 文件数 / 任务数 / 校验数 / 字节 / 章节数 |
+| POST | `/api/library/:id/verify` | SHA-256 完整性校验 |
+| GET / HEAD | `/api/library/:id/file` | EPUB 二进制流 |
+| DELETE | `/api/library/:id` | 需 `LN_BFF_ALLOW_DELETE=true`，否则 403 |
+| GET | `/api/sources` / `/api/activities` | 书源注册表 / 最近活动（来自真实日志） |
+
+### BFF 环境变量
+
+| 变量 | 默认 | 说明 |
+|---|---|---|
+| `LN_BFF_HOST` / `LN_BFF_PORT` | `127.0.0.1` / `5273` | 监听地址 / 端口（容器内用 `0.0.0.0:8080`） |
+| `LN_WEB_DIST` | `<repo>/web/dist` | 前端产物目录 |
+| `LN_BFF_DATA_DIR` | `~/.local/share/dsh-plugin-lightnovel-web` | 数据、任务、日志、索引根目录 |
+| `LN_BFF_LIBRARY_DIR` | `<data>/library`，否则 `LN_LIBRARY_DIR` | EPUB 库目录 |
+| `LN_BFF_TOKEN` | 空 | 设置后每个 `/api/*` 都要 `X-LN-Token` 或 `Authorization: Bearer`；前端在设置页填写，存 localStorage |
+| `LN_BFF_ALLOW_DELETE` | `false` | 显式开启 `DELETE /api/library/:id` |
+| `LN_BFF_CORS_ORIGIN` | 空 | 分离域名开发时的允许源 |
+| `LN_DART_BINARY` / `LN_DART_SDK` | 自动探测 | 下载/详情/分卷所需的 Dart 运行方式 |
+| `LN_FIXTURES_DIR` | 包内 `test/fixtures` | 离线 fixture 根目录 |
+| `LN_ENABLED_SOURCES` / `LN_OFFLINE_ONLY` | `bilinovel,fixture` / `false` | 书源范围；离线部署设 `fixture,true` |
+| `LN_RESPECT_ROBOTS` | `true` | 保持开启，不提供绕过开关 |
+
+安全与合规：`MAX_BODY=64KB`、`timingSafeEqual` token 比较、SSRF 公网 URL 校验、库路径 `safeResolve`、静态路径穿越拒绝、受限/登录书源禁用、不伪造评分/延迟/成功率、空 query 不触网。容器部署见 [`docker-compose.web.yml`](./docker-compose.web.yml) 与 [`docs/DEPLOY-NAS.md`](./docs/DEPLOY-NAS.md)。
+
+### 验证
+
+```bash
+npm run verify:web
+# 隔离数据目录 + 随机端口 + 离线 fixture：
+# health/status/搜索/详情/分卷/任务/书库/EPUB/sha256/verify/错误路径/
+# 静态托管/SPA fallback/token/DELETE 全链路，49 项断言。
 ```
 
 - 视觉还原与逐区域对比：[web/docs/COMPARISON.md](./web/docs/COMPARISON.md)、[web/docs/screenshots](./web/docs/screenshots)
-- 功能清单、Mock 边界、真实接口接入方式：[web/README.md](./web/README.md)
-- 前端数据层为独立 Mock（`web/src/services/novelApi.ts`，`API_MODE='mock'`），界面统一标注「交互原型 · 非真实数据」；`docs/API-CONTRACT.md` 中的 `/api/*` 仍是计划接口，插件后端与 Dart 核心未做修改。
+- 功能清单、Mock 边界、Live 接入与环境变量：[web/README.md](./web/README.md)
+- 前端默认数据层仍是 Mock（`web/src/services/novelApi.ts`），界面标注「交互原型 · 非真实数据」；Live 构建标注「实时数据」，且不再注入任何演示数据。
 
 ---
 
@@ -161,7 +220,10 @@ npm run test:unit        # 71 个单元测试（含在线书源、Dart bridge、
 npm run test:integration # 真实 DSH 运行时加载 + 六工具调用 + CLI 组合
 npm run test:dart        # 编译 Dart 核心并端到端生成 EPUB
 npm test                 # 全部 88 项 vitest
+npm run verify:web       # BFF + Live 前端 49 项端到端断言（隔离数据目录、离线 fixture）
 ```
+
+`verify:web` 需要先构建插件（`npm run build`）与 Live 前端（`cd web && VITE_API_MODE=live npm run build`），并使用 Node 24 + Dart。脚本会随机端口启动真实 BFF，覆盖搜索、下载、EPUB、token、删除、静态托管与错误路径，不污染真实书库。
 
 `test:integration` **不是模拟**：它启动真实的 Cordis `Context`，挂载真实的 `ToolsService` / `SystemPrompt` / NativeToolExecutor，把 `dist/index.js` 通过 `ctx.plugin()` 载入，再经 `ctx.tools.execute()` 派发调用，走完完整闭环并校验生成的 EPUB。另一组测试调用真实 `dsh --dump-config` 验证 bundle 组合层。
 
@@ -183,12 +245,15 @@ npm test                 # 全部 88 项 vitest
 
 ```
 src/                     TypeScript 插件（工具、任务、持久化、搜索、合规、日志）
+server/                  BFF：PluginRuntime -> /api/* + web/dist 静态托管
+web/                     React + TS + Vite 管理台（Mock / Live 双构建）
 vendor/bili_novel_packer/ 原 Dart 项目（仅加性补丁：headless.dart / hooks / fixture_source / console sink）
 test/fixtures/           离线书源数据（books.json / novel.json / catalog.json / 章节 / 图片）
 test/unit/               单元测试
 test/integration/        真实 DSH 运行时与 CLI 集成测试
-docker/ docker-compose.yml Dockerfile   飞牛 NAS 部署
-docs/                    配置与部署文档
+scripts/verify-web-api.mjs  BFF + 前端端到端验证（49 项）
+docker/ docker-compose.yml docker-compose.web.yml   NAS / 通用部署
+docs/                    配置、部署、在线书源与合规文档
 ```
 
 ## License

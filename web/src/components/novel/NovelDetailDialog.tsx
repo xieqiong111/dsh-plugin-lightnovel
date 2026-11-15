@@ -5,8 +5,9 @@ import { Button, Badge } from '@/components/common/ui'
 import { Modal } from '@/components/common/Modal'
 import { CoverArt } from '@/components/novel/CoverArt'
 import { VolumeSelector } from '@/components/novel/VolumeSelector'
+import { useToast } from '@/components/common/Toast'
 import { novelApi } from '@/services/novelApi'
-import { taskStore } from '@/services/taskStore'
+import { IS_LIVE } from '@/services/runtime'
 import type { Novel, Volume } from '@/types'
 
 export function NovelDetailDialog({
@@ -20,6 +21,8 @@ export function NovelDetailDialog({
 }) {
   const [volumes, setVolumes] = useState<Volume[]>([])
   const [selected, setSelected] = useState<string[]>([])
+  const [submitting, setSubmitting] = useState(false)
+  const { toast } = useToast()
 
   useEffect(() => {
     if (!novel) return
@@ -36,17 +39,28 @@ export function NovelDetailDialog({
 
   if (!novel) return null
 
-  const quickDownload = () => {
-    if (selected.length === 0) return
-    taskStore.create({
-      bookId: novel.id,
-      volumes: selected,
-      volumeNames: volumes.filter((v) => selected.includes(v.id)).map((v) => v.name),
-      combine: false,
-      addChapterTitle: true,
-    })
-    onDownloaded?.(novel.title)
-    onClose()
+  const quickDownload = async () => {
+    if (selected.length === 0 || submitting) return
+    setSubmitting(true)
+    try {
+      await novelApi.createTask({
+        bookId: novel.id,
+        volumes: selected,
+        volumeNames: volumes.filter((v) => selected.includes(v.id)).map((v) => v.name),
+        combine: false,
+        addChapterTitle: true,
+      })
+      onDownloaded?.(novel.title)
+      onClose()
+    } catch (error) {
+      toast({
+        tone: 'warning',
+        title: '创建下载任务失败',
+        description: error instanceof Error ? error.message : String(error),
+      })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -63,7 +77,7 @@ export function NovelDetailDialog({
           <div className="mt-3 flex items-center justify-between rounded-[10px] bg-[#FBFAFE] px-3 py-2 text-[10.5px] text-[#8B8BA0]">
             <span className="flex items-center gap-1">
               <Star className="h-3 w-3 text-[#F59E0B]" />
-              {novel.rating.toFixed(1)}
+              {novel.rating > 0 ? novel.rating.toFixed(1) : '暂无评分'}
             </span>
             <span>{novel.volumes} 卷</span>
             <span>{novel.status === 'completed' ? '完结' : '连载'}</span>
@@ -76,7 +90,7 @@ export function NovelDetailDialog({
               {novel.status === 'completed' ? '已完结' : '连载中'}
             </Badge>
             <Badge tone="gray">{novel.source}</Badge>
-            <Badge tone="amber">示例数据</Badge>
+            <Badge tone={IS_LIVE ? 'green' : 'amber'}>{IS_LIVE ? '实时数据' : '示例数据'}</Badge>
           </div>
           <h2 className="mt-3 text-[21px] font-bold leading-tight tracking-[-0.01em] text-[#1E1F35]">{novel.title}</h2>
           <p className="mt-1 text-[11.5px] text-[#8B8BA0]">
@@ -93,11 +107,24 @@ export function NovelDetailDialog({
 
           <div className="mt-4 border-t border-[#F2F0F8] pt-4">
             <VolumeSelector volumes={volumes} selected={selected} onChange={setSelected} />
+            {volumes.length === 0 && (
+              <p className="mt-3 rounded-[10px] bg-[#FDF8EC] px-3 py-2 text-[10px] leading-relaxed text-[#B4791B]">
+                {IS_LIVE
+                  ? '后端未返回分卷：请检查 Dart headless 核心是否可用，或该书源是否提供卷目录。'
+                  : '暂无分卷数据。'}
+              </p>
+            )}
           </div>
 
           <div className="mt-5 flex flex-wrap items-center gap-2">
-            <Button variant="primary" size="md" icon={<Download className="h-3.5 w-3.5" />} onClick={quickDownload}>
-              下载 {selected.length} 卷
+            <Button
+              variant="primary"
+              size="md"
+              icon={<Download className="h-3.5 w-3.5" />}
+              disabled={submitting || selected.length === 0}
+              onClick={() => void quickDownload()}
+            >
+              {submitting ? '正在创建…' : `下载 ${selected.length} 卷`}
             </Button>
             <Link
               to={`/novel/${encodeURIComponent(novel.id)}`}

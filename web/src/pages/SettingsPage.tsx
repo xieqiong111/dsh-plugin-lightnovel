@@ -1,15 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Database, Info, Palette, Save, Server, ShieldCheck, SlidersHorizontal, Trash2 } from 'lucide-react'
 import { Badge, Button, Card, SectionTitle } from '@/components/common/ui'
 import { Modal } from '@/components/common/Modal'
 import { PageHeader } from '@/components/common/PageHeader'
 import { useToast } from '@/components/common/Toast'
+import { novelApi } from '@/services/novelApi'
+import { API_BASE, DEMO, IS_LIVE, getApiToken, setApiToken, type RuntimeStatus } from '@/services/runtime'
 import { cn } from '@/services/utils'
 
 export function SettingsPage() {
   const { toast } = useToast()
-  const [apiBase, setApiBase] = useState('http://127.0.0.1:8080/api')
+  const [apiBase, setApiBase] = useState(IS_LIVE ? `${window.location.origin}${API_BASE}` : 'http://127.0.0.1:8080/api')
+  const [token, setToken] = useState(getApiToken())
+  const [status, setStatus] = useState<RuntimeStatus | null>(null)
   const [poll, setPoll] = useState('2000')
   const [concurrency, setConcurrency] = useState('2')
   const [combine, setCombine] = useState(false)
@@ -17,20 +21,45 @@ export function SettingsPage() {
   const [motion, setMotion] = useState(true)
   const [resetOpen, setResetOpen] = useState(false)
 
+  useEffect(() => {
+    if (!IS_LIVE) return
+    let alive = true
+    novelApi
+      .getStatus()
+      .then((data) => alive && setStatus(data))
+      .catch(() => {
+        /* status is informational; keep the panel usable when the API is down */
+      })
+    return () => {
+      alive = false
+    }
+  }, [])
+
   return (
     <div>
       <PageHeader
         eyebrow="Settings"
         title="系统设置"
-        description="前端演示用配置面板。除界面偏好外，所有与后端相关的字段都不会真正保存或生效。"
+        description={
+          IS_LIVE
+            ? '运行信息读取自插件运行时（GET /api/status）。访问令牌仅保存在本浏览器 localStorage；服务端配置需通过环境变量修改，本页不提供写入接口。'
+            : '前端演示用配置面板。除界面偏好外，所有与后端相关的字段都不会真正保存或生效。'
+        }
         actions={
           <>
-            <Badge tone="amber" className="h-7 px-3">未持久化</Badge>
+            <Badge tone={IS_LIVE ? 'green' : 'amber'} className="h-7 px-3">{IS_LIVE ? DEMO.label : '未持久化'}</Badge>
             <Button
               variant="primary"
               size="sm"
               icon={<Save className="h-3.5 w-3.5" />}
-              onClick={() => toast({ tone: 'info', title: '配置未保存', description: '后端配置接口尚未实现，本次修改仅在当前页面会话中生效。' })}
+              onClick={() => {
+                if (IS_LIVE) {
+                  setApiToken(token.trim())
+                  toast({ tone: 'success', title: '访问令牌已保存', description: '仅保存在本浏览器，后续 /api 请求会带上 X-LN-Token 头。' })
+                } else {
+                  toast({ tone: 'info', title: '配置未保存', description: 'Mock 原型没有后端配置接口，本次修改仅在当前页面会话中生效。' })
+                }
+              }}
             >
               保存设置
             </Button>
@@ -43,16 +72,29 @@ export function SettingsPage() {
           <Card className="p-5">
             <div className="flex items-center justify-between">
               <SectionTitle title="连接与接口" className="[&_h2]:text-[18px]" />
-              <Badge tone="gray"><Server className="h-3 w-3" /> 待接入</Badge>
+              <Badge tone={IS_LIVE ? 'green' : 'gray'}><Server className="h-3 w-3" /> {IS_LIVE ? 'BFF 已连接' : '待接入'}</Badge>
             </div>
             <div className="mt-4 space-y-3.5">
-              <Field label="API 基础地址" hint="建议仅在内网或 Cloudflare Access 会话内暴露">
+              <Field label="API 基础地址" hint={IS_LIVE ? '构建时由 VITE_API_BASE 决定，此处只读' : '建议仅在内网暴露'}>
                 <input
                   value={apiBase}
+                  readOnly={IS_LIVE}
                   onChange={(event) => setApiBase(event.target.value)}
                   className="h-10 w-full rounded-[10px] border border-[#EFEDF6] bg-[#FBFAFE] px-3 font-mono text-[11px] text-[#3F4058] focus:border-[#C4B5FB] focus:bg-white focus:outline-none"
                 />
               </Field>
+              {IS_LIVE && (
+                <Field label="访问令牌 X-LN-Token" hint="留空表示服务端未启用鉴权">
+                  <input
+                    type="password"
+                    value={token}
+                    onChange={(event) => setToken(event.target.value)}
+                    placeholder="LN_BFF_TOKEN（仅保存在本浏览器）"
+                    autoComplete="off"
+                    className="h-10 w-full rounded-[10px] border border-[#EFEDF6] bg-[#FBFAFE] px-3 font-mono text-[11px] text-[#3F4058] focus:border-[#C4B5FB] focus:bg-white focus:outline-none"
+                  />
+                </Field>
+              )}
               <div className="grid gap-3.5 sm:grid-cols-2">
                 <Field label="任务轮询间隔" hint="任务页刷新频率">
                   <Select value={poll} onChange={setPoll} options={[['1000', '1 秒'], ['2000', '2 秒'], ['5000', '5 秒'], ['10000', '10 秒']]} />
@@ -144,8 +186,13 @@ export function SettingsPage() {
               {[
                 ['前端版本', 'Lightnovel Studio 1.0.0'],
                 ['插件版本', 'dsh-plugin-lightnovel 1.0.0'],
-                ['运行模式', 'Mock · 前端原型'],
-                ['数据接口', '未接入'],
+                ['运行模式', IS_LIVE ? 'Live · PluginRuntime / BFF' : 'Mock · 前端原型'],
+                ['数据接口', IS_LIVE ? `${API_BASE}/*` : '未接入'],
+                ['Dart 核心', IS_LIVE ? (status?.dart.available ? `就绪 · ${status.dart.runner ?? 'runner'}` : status ? '不可用 · 下载已禁用' : '读取中…') : '不适用'],
+                ['搜索模式', IS_LIVE ? status?.searchMode ?? '读取中…' : '本地样例过滤'],
+                ['robots / 限速', IS_LIVE ? (status?.respectRobots ? '已启用' : '未启用') : '不适用'],
+                ['离线限定', IS_LIVE ? (status?.offlineOnly ? '是（仅 fixture）' : '否') : '不适用'],
+                ['鉴权', IS_LIVE ? (status?.features.token ? '已启用' : '未启用') : '不适用'],
                 ['构建工具', 'Vite + React 18'],
               ].map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between gap-3">
@@ -159,10 +206,20 @@ export function SettingsPage() {
           <Card className="p-5">
             <SectionTitle title="实现说明" className="[&_h2]:text-[17px]" />
             <p className="mt-3 text-[10px] leading-[1.9] text-[#8B8BA0]">
-              API 契约见仓库根目录 <span className="font-mono text-[9px] text-[#6C4AD9]">API-CONTRACT.md</span>。
-              该文件明确说明这些端点为「计划接口」，仓库当前并不存在 HTTP 服务。因此在接入前，页面统一使用
-              <span className="mx-1 rounded bg-[#F1EDFE] px-1.5 py-0.5 text-[#6C4AD9]">Mock 数据层</span>
-              并在界面上持续标注。
+              {IS_LIVE ? (
+                <>
+                  HTTP 服务由 <span className="font-mono text-[9px] text-[#6C4AD9]">server/serve.mjs</span> 提供，
+                  把 <span className="font-mono text-[9px] text-[#6C4AD9]">/api/*</span> 直接映射到插件
+                  <span className="mx-1 rounded bg-[#F1EDFE] px-1.5 py-0.5 text-[#6C4AD9]">PluginRuntime</span>
+                  ，不复制业务逻辑。端点清单与环境变量见仓库 README 与 docs/DEPLOY-NAS.md。
+                </>
+              ) : (
+                <>
+                  当前为纯静态
+                  <span className="mx-1 rounded bg-[#F1EDFE] px-1.5 py-0.5 text-[#6C4AD9]">Mock 数据层</span>
+                  原型，不发起任何网络请求。以 <span className="font-mono text-[9px] text-[#6C4AD9]">VITE_API_MODE=live npm run build</span> 构建后即可接入 BFF。
+                </>
+              )}
             </p>
             <div className="mt-3 flex items-start gap-1.5 rounded-[8px] bg-[#FBFAFE] px-2.5 py-2 text-[9.5px] leading-relaxed text-[#A2A2B6]">
               <Info className="mt-[1px] h-3 w-3 shrink-0 text-[#C4B5FB]" />
@@ -179,7 +236,7 @@ export function SettingsPage() {
               </a>
               <div className="flex items-center gap-2 rounded-[9px] border border-[#F1EFF8] px-3 py-2 text-[10.5px] text-[#A2A2B6]">
                 <SlidersHorizontal className="h-3.5 w-3.5 text-[#C4B5FB]" />
-                配置接口 · 待实现
+                {IS_LIVE ? 'GET /api/status · 只读' : '配置接口 · 待实现'}
               </div>
             </div>
           </Card>
@@ -200,7 +257,11 @@ export function SettingsPage() {
               size="sm"
               onClick={() => {
                 setResetOpen(false)
-                toast({ tone: 'warning', title: '演示缓存已清空', description: '仅重置本地 UI 状态，未触碰真实文件或数据库。' })
+                if (IS_LIVE) {
+                  setApiToken('')
+                  setToken('')
+                }
+                toast({ tone: 'warning', title: '本地缓存已清空', description: IS_LIVE ? '已清除本浏览器保存的访问令牌，未触碰服务端文件与书库。' : '仅重置本地 UI 状态，未触碰真实文件或数据库。' })
               }}
             >
               确认清空

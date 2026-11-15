@@ -13,6 +13,9 @@ export function NovelCard({
   onOpen?: (novel: Novel) => void
   compact?: boolean
 }) {
+  const completed = novel.status === 'completed'
+  const unknown = novel.status === 'unknown'
+  const statusLabel = completed ? '已完结' : unknown ? '状态未知' : '连载中'
   return (
     <div
       className={cn(
@@ -46,9 +49,9 @@ export function NovelCard({
             {novel.volumes} 卷
             <span className="hidden 2xl:inline"> · {novel.source}</span>
           </span>
-          <span className={cn('flex shrink-0 items-center gap-1', novel.status === 'completed' ? 'text-[#7C5CE8]' : 'text-[#0B9E74]')}>
-            <span className={cn('h-1.5 w-1.5 rounded-full', novel.status === 'completed' ? 'bg-[#8B63F2]' : 'bg-[#10B981]')} />
-            {novel.status === 'completed' ? '已完结' : '连载中'}
+          <span className={cn('flex shrink-0 items-center gap-1', completed ? 'text-[#7C5CE8]' : unknown ? 'text-[#9A94B5]' : 'text-[#0B9E74]')}>
+            <span className={cn('h-1.5 w-1.5 rounded-full', completed ? 'bg-[#8B63F2]' : unknown ? 'bg-[#B5B5C6]' : 'bg-[#10B981]')} />
+            {statusLabel}
           </span>
         </div>
       </div>

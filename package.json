@@ -23,6 +23,7 @@
   ],
   "files": [
     "dist",
+    "server",
     "cordis.patch.yml",
     "vendor/bili_novel_packer",
     "!vendor/bili_novel_packer/.dart_tool",
@@ -32,10 +33,12 @@
     "scripts/prepare.mjs",
     "scripts/verify-nas.mjs",
     "scripts/verify-live.mjs",
+    "scripts/verify-web-api.mjs",
     "docs",
     "docker",
     "Dockerfile",
     "docker-compose.yml",
+    "docker-compose.web.yml",
     ".env.example",
     "vitest.config.ts",
     "README.md",
@@ -58,7 +61,10 @@
     "test": "vitest run",
     "test:unit": "vitest run test/unit",
     "test:integration": "vitest run test/integration",
-    "test:dart": "node scripts/run-dart-tests.mjs"
+    "test:dart": "node scripts/run-dart-tests.mjs",
+    "web:serve": "node server/serve.mjs",
+    "web:build": "npm --prefix web run build",
+    "verify:web": "node scripts/verify-web-api.mjs"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.1.0",
