@@ -31,6 +31,8 @@ const dartBinary = process.env.LN_DART_BINARY
 const EXPECTED_TOOLS = [
   'novel_search', 'novel_details', 'novel_volumes',
   'novel_download', 'novel_tasks', 'novel_library',
+  'manga_search', 'manga_details', 'manga_chapters', 'manga_download',
+  'manga_tasks', 'manga_library', 'manga_sources', 'manga_subscribe',
 ]
 
 let ctx: Context
@@ -101,7 +103,7 @@ describe('DSH loading (requirement #12)', () => {
     expect((plugin.Config as { '~standard'?: unknown })['~standard']).toBeTruthy()
   })
 
-  it('registers exactly the six native tools in the real ToolsService', () => {
+  it('registers all native novel and manga tools in the real ToolsService', () => {
     const names = ctx.tools.schemas().map((t) => t.name)
     for (const tool of EXPECTED_TOOLS) expect(names, `missing ${tool}`).toContain(tool)
   })

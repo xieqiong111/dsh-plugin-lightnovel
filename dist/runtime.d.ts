@@ -9,6 +9,7 @@ import { LocalIndex } from './sources/local-index.js';
 import { SourceRegistry } from './sources/registry.js';
 import { PoliteFetcher } from './util/http.js';
 import type { Logger } from './util/logger.js';
+import type { SuwayomiClient } from '../server/suwayomi-client.mjs';
 /**
  * Owns every long-lived object of one plugin instance.
  *
@@ -27,6 +28,7 @@ export declare class PluginRuntime {
     readonly tasks: TaskManager;
     readonly search: SearchEngine;
     readonly novels: NovelService;
+    readonly suwayomi: SuwayomiClient;
     private initPromise;
     private dartStatus;
     constructor(config: ResolvedConfig, logger: Logger);

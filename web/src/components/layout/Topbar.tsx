@@ -8,10 +8,10 @@ import { DEMO, IS_LIVE } from '@/services/runtime'
 
 const routeMeta: Record<string, { group: string; title: string; eyebrow?: string }> = {
   '/': { group: '工作台', title: '工作台' },
-  '/search': { group: '小说搜索', title: '搜索发现' },
-  '/library': { group: '小说书库', title: '我的书库' },
+  '/search': { group: '资源搜索', title: '搜索发现' },
+  '/library': { group: '资源书库', title: '我的书库' },
   '/tasks': { group: '下载任务', title: '下载任务' },
-  '/sources': { group: '书源管理', title: '书源状态' },
+  '/sources': { group: '资源源管理', title: '资源源管理' },
   '/auto-update': { group: '自动追更', title: '自动追更' },
   '/stats': { group: '统计分析', title: '统计分析' },
   '/settings': { group: '系统设置', title: '系统设置' },
@@ -24,8 +24,7 @@ export function Topbar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
   const { data: activityData } = useAsync(() => novelApi.getActivities(), [notifyOpen])
   const activityItems = activityData ?? []
 
-  const meta = routeMeta[location.pathname] ?? { group: '小说详情', title: '小说详情' }
-  const title = location.pathname.startsWith('/novel/') ? '小说详情' : meta.title
+  const title = routeMeta[location.pathname]?.title ?? (location.pathname.startsWith('/manga/') ? '漫画详情' : '小说详情')
 
   useEffect(() => {
     if (!notifyOpen) return
@@ -49,7 +48,7 @@ export function Topbar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
 
       <div className="flex min-w-0 flex-1 items-center gap-3">
         <span className="hidden items-center gap-1.5 text-[10.5px] font-semibold uppercase tracking-[0.22em] text-[#A6A6B8] sm:flex">
-          Lightnovel
+          Novel &amp; Manga
         </span>
         <ChevronRight className="hidden h-3 w-3 text-[#C5C5D4] sm:block" />
         <span className="truncate text-[12.5px] font-medium text-[#5B5B73]">{title}</span>
@@ -58,12 +57,12 @@ export function Topbar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
       <div className="flex items-center gap-2 sm:gap-3">
         <span
           className={cn(
-            'hidden items-center gap-1.5 rounded-full border px-4 py-[6px] text-[11.5px] font-medium md:inline-flex',
+            'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-[6px] text-[10px] font-medium sm:px-4 sm:text-[11.5px]',
             IS_LIVE ? 'border-[#D1F0E2] bg-[#ECFDF5] text-[#0B9E74]' : 'border-[#F5E3BE] bg-[#FDF6E8] text-[#B4791B]',
           )}
         >
           <span className={cn('h-1.5 w-1.5 rounded-full', IS_LIVE ? 'bg-[#10B981]' : 'bg-[#F59E0B]')} />
-          {DEMO.badge}
+          {DEMO.label}
         </span>
 
         <a
@@ -118,7 +117,7 @@ export function Topbar({ onOpenSidebar }: { onOpenSidebar: () => void }) {
 
         <Link to="/settings" className="group flex items-center gap-2.5">
           <span className="relative flex h-8 w-8 items-center justify-center rounded-full bg-[linear-gradient(135deg,#8B6BF0,#5D3FC9)] text-[11px] font-bold text-white ring-2 ring-white transition group-hover:brightness-110">
-            LN
+            NM
             <Sparkles className="absolute -right-1 -top-1 h-3 w-3 text-[#C4B5FB]" />
           </span>
         </Link>

@@ -1,3 +1,4 @@
+import { MangaSubscriptions } from '@/components/manga/MangaSubscriptions'
 import { BellRing, Clock, Info, Plus, RefreshCw, Sparkles } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, SectionTitle } from '@/components/common/ui'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -17,11 +18,13 @@ export function AutoUpdatePage() {
   return (
     <div>
       <PageHeader
-        eyebrow="Auto update · planned"
+        eyebrow="Auto update"
         title="自动追更"
-        description="按固定周期检查书源更新，并在有新章节时自动创建下载任务。无论 Mock 还是 Live 模式，插件后端都尚未提供 cron 调度与更新差异比对接口，因此本页控件全部禁用。"
-        actions={<Badge tone="amber" className="h-7 px-3">{IS_LIVE ? 'Live · 调度未实现' : 'UI 占位 · 不可用'}</Badge>}
+        description="查看漫画书架的追更状态和轻小说追更规划。"
+        actions={<Badge tone="amber" className="h-7 px-3">{IS_LIVE ? '轻小说调度待开发' : '演示数据'}</Badge>}
       />
+
+      <MangaSubscriptions />
 
       <Card className="relative mb-5 overflow-hidden border-[#F5E3BE] bg-[linear-gradient(100deg,#FFFBF3,#FDF6E8)] p-6">
         <div className="pointer-events-none absolute -right-10 -top-14 h-48 w-48 rounded-full border border-[#F3DFB7]" />
@@ -31,11 +34,11 @@ export function AutoUpdatePage() {
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-[15px] font-bold text-[#2B2C44]">自动追更尚未实现</p>
+              <p className="text-[15px] font-bold text-[#2B2C44]">轻小说自动追更待开发</p>
               <Badge tone="amber">Roadmap</Badge>
             </div>
             <p className="mt-1.5 max-w-[720px] text-[10.5px] leading-relaxed text-[#90764A]">
-              仓库目前只提供搜索、详情、分卷、下载、任务、书库六个受控工具，没有 cron 调度与差异比对能力。为避免误导，本页控件全部为禁用状态。
+              轻小说下载插件还没有定时调度与更新差异检测，本区域为界面占位。
             </p>
           </div>
           <Button
@@ -144,7 +147,7 @@ export function AutoUpdatePage() {
       <Card className="mt-5">
         <EmptyState
           icon={<RefreshCw className="h-6 w-6" />}
-          title="还没有正在运行的追更任务"
+          title="轻小说追更运行状态待接入"
           description="该区域将在后端调度器落地后展示实时运行状态、上次检查时间与失败原因。"
         />
       </Card>

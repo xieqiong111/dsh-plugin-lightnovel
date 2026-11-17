@@ -1,6 +1,6 @@
 # dsh-plugin-lightnovel
 
-DeepSeek Harness (Cordis) 原生插件：让 AI Agent 自主**搜索轻小说 → 查看详情 → 选择分卷 → 下载 EPUB**。
+DeepSeek Harness (Cordis) 原生插件：提供**轻小说搜索与 EPUB 下载闭环**，并通过 Suwayomi 提供独立的漫画搜索、书库与下载队列工具。
 
 基于原项目 [montaro2017/bili_novel_packer](https://github.com/montaro2017/bili_novel_packer)（Dart CLI）开发，**保留其采集、正文恢复、插图嵌入与 EPUB 打包能力**，仅在外围增加非交互接口、进度/取消钩子和工具层。
 
@@ -18,6 +18,21 @@ DeepSeek Harness (Cordis) 原生插件：让 AI Agent 自主**搜索轻小说 �
 | `novel_download` | 后台任务方式下载 EPUB，返回 `taskId`，支持 `combine` 合卷 |
 | `novel_tasks` | 进度查询 / 取消 / 失败重试 / 任务列表 / 结构化日志 / 运行诊断 |
 | `novel_library` | 已下载 EPUB 库：列表、详情、校验、sha256、删除（需确认） |
+
+### 漫画（Suwayomi）
+
+| 工具 | 作用 |
+|------|------|
+| `manga_search` | 通过 Suwayomi 已安装书源检索或浏览漫画 |
+| `manga_details` | 获取漫画元数据 |
+| `manga_chapters` | 分页列出章节及阅读 / 下载状态 |
+| `manga_download` | 将明确选择的章节加入 Suwayomi 下载队列 |
+| `manga_tasks` | 查询下载队列或取消指定章节 |
+| `manga_library` | 列出 Suwayomi 书库漫画 |
+| `manga_sources` | 列出已安装漫画书源 |
+| `manga_subscribe` | 设置漫画是否加入 Suwayomi 书库 |
+
+`manga_subscribe` 对应 Suwayomi 的书库成员状态，不表示周期性自动追更订阅。安装步骤见 [DSH 原生漫画工具](./docs/DSH-MANGA.md)。WebUI 接口、环境变量及 NAS 部署见 [Suwayomi 漫画集成](./docs/MANGA.md)。
 
 闭环示例（工具返回值均为 lossless JSON）：
 

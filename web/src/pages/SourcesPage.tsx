@@ -1,3 +1,4 @@
+import { MangaHealthPanel } from '@/components/manga/MangaHealthPanel'
 import { useEffect, useState } from 'react'
 import { Activity, AlertTriangle, CheckCircle2, ExternalLink, Globe2, RefreshCw, ShieldAlert, Zap } from 'lucide-react'
 import { Badge, Button, Card, EmptyState, SectionTitle, Spinner } from '@/components/common/ui'
@@ -93,7 +94,7 @@ export function SourcesPage() {
     <div>
       <PageHeader
         eyebrow="Source health"
-        title="书源状态"
+        title="资源源管理"
         description={
           IS_LIVE
             ? '只读诊断面板。书源来自插件运行时 registry，状态为配置态而非实时探测；受限或降级书源会被如实标注。'
@@ -118,6 +119,8 @@ export function SourcesPage() {
         }
       />
 
+      <div className="mb-5"><MangaHealthPanel showSources /></div>
+      <h2 className="mb-3 text-lg font-bold text-[#2B2C44]">轻小说书源</h2>
       <div className="mb-5 flex items-start gap-2 rounded-[12px] border border-[#E9E4FA] bg-[#FBFAFF] px-4 py-3 text-[10.5px] leading-relaxed text-[#8B8BA0]">
         <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#A78BFA]" />
         <span>

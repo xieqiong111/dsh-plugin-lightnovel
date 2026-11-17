@@ -8,6 +8,7 @@ import { SearchEngine } from './search.js';
 import { LocalIndex } from './sources/local-index.js';
 import { SourceRegistry } from './sources/registry.js';
 import { PoliteFetcher } from './util/http.js';
+import { createSuwayomiClient } from '../server/suwayomi-client.mjs';
 /**
  * Owns every long-lived object of one plugin instance.
  *
@@ -26,6 +27,7 @@ export class PluginRuntime {
     tasks;
     search;
     novels;
+    suwayomi;
     initPromise = null;
     dartStatus = {
         available: false,
@@ -43,6 +45,7 @@ export class PluginRuntime {
             logger,
         });
         this.registry = new SourceRegistry(config, logger);
+        this.suwayomi = createSuwayomiClient();
         this.index = new LocalIndex(config.indexPath, logger);
         this.bridge = new DartBridge(config, logger);
         this.store = new TaskStore(config.tasksDir, logger);

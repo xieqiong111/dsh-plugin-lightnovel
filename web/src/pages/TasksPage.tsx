@@ -12,7 +12,12 @@ import {
   Trash2,
   XCircle,
 } from 'lucide-react'
-import { Badge, Button, Card, EmptyState, Progress } from '@/components/common/ui'
+import { Badge, Button, Card, EmptyState, Progress, Spinner } from '@/components/common/ui'
+import { MediaFilterTabs, useMediaFilter } from '@/components/common/MediaFilter'
+import { MangaNotice } from '@/components/manga/MangaNotice'
+import { MangaTaskCard } from '@/components/manga/MangaTaskCard'
+import { useMangaTasks } from '@/hooks/useMangaTasks'
+import type { UnifiedDownloadTask } from '@/types/manga'
 import { Modal } from '@/components/common/Modal'
 import { PageHeader } from '@/components/common/PageHeader'
 import { CoverArt } from '@/components/novel/CoverArt'
@@ -23,13 +28,16 @@ import { DEMO, IS_LIVE } from '@/services/runtime'
 import type { DownloadTask, TaskState } from '@/types'
 import { cn } from '@/services/utils'
 
-const tabs: { id: 'all' | TaskState; label: string }[] = [
-  { id: 'all', label: '全部' },
+type TaskFilter = 'all' | 'unknown' | TaskState
+
+const tabs: { id: TaskFilter; label: string }[] = [
+  { id: 'all', label: '全部状态' },
   { id: 'running', label: '进行中' },
   { id: 'queued', label: '排队中' },
   { id: 'completed', label: '已完成' },
   { id: 'failed', label: '失败' },
   { id: 'cancelled', label: '已取消' },
+  { id: 'unknown', label: '状态未知' },
 ]
 
 const stateMeta: Record<TaskState, { label: string; tone: 'violet' | 'green' | 'amber' | 'rose' | 'gray'; icon: JSX.Element }> = {
@@ -41,14 +49,20 @@ const stateMeta: Record<TaskState, { label: string; tone: 'violet' | 'green' | '
 }
 
 export function TasksPage() {
-  const tasks = useTasks()
+  const novels = useTasks()
+  const type = useMediaFilter()
+  const mangaTasks = useMangaTasks(type !== 'novel')
   const { toast } = useToast()
-  const [tab, setTab] = useState<'all' | TaskState>('all')
+  const [tab, setTab] = useState<TaskFilter>('all')
   const [detail, setDetail] = useState<DownloadTask | null>(null)
   const [cancelTarget, setCancelTarget] = useState<DownloadTask | null>(null)
 
-  const filtered = tab === 'all' ? tasks : tasks.filter((task) => task.state === tab)
-  const runningCount = tasks.filter((task) => task.state === 'running').length
+  const tasks: UnifiedDownloadTask[] = [
+    ...(type === 'manga' ? [] : novels.map((task): UnifiedDownloadTask => ({ type: 'novel', id: `novel:${task.id}`, task }))),
+    ...mangaTasks.queue.map((task): UnifiedDownloadTask => ({ type: 'manga', id: `manga:${task.id}`, task })),
+  ]
+  const filtered = tab === 'all' ? tasks : tasks.filter(({ task }) => task.state === tab)
+  const runningCount = tasks.filter(({ task }) => task.state === 'running').length
 
   const cancel = async (task: DownloadTask) => {
     try {
@@ -77,22 +91,22 @@ export function TasksPage() {
         title="下载任务"
         description={
           IS_LIVE
-            ? '任务状态来自插件 TaskManager，前端每 2 秒轮询 GET /api/tasks；取消与重试调用真实接口，插件不提供暂停/恢复。'
-            : '异步任务状态由 Mock 层模拟推进，仅用于演示动效，不会发起真实网络请求。'
+            ? '轻小说任务来自插件，漫画进度来自 Suwayomi 下载队列。漫画下载完成后可在详情页确认已下载章节。'
+            : '体验 EPUB 下载和漫画章节排队。'
         }
         actions={
           <>
             <Badge tone={IS_LIVE ? 'green' : 'amber'} className="h-7 px-3">
               {IS_LIVE ? <Download className="h-3 w-3" /> : null}
-              {IS_LIVE ? `${runningCount} 个任务进行中` : DEMO.label}
+              {!IS_LIVE ? DEMO.label : mangaTasks.error || mangaTasks.loading ? '当前队列部分可用' : `${runningCount} 个任务进行中`}
             </Badge>
             <Button
               variant="secondary"
               size="sm"
               icon={<RefreshCw className="h-3.5 w-3.5" />}
               onClick={() => {
-                taskStore.refresh()
-                toast({ tone: 'info', title: '已刷新任务列表', description: IS_LIVE ? '已立即向 /api/tasks 发起一次轮询。' : '演示层为本地状态，无需真实轮询。' })
+                if (type !== 'manga') taskStore.refresh()
+                if (type !== 'novel') mangaTasks.refresh()
               }}
             >
               刷新
@@ -101,13 +115,18 @@ export function TasksPage() {
         }
       />
 
-      <div className="mb-5 flex flex-wrap items-center gap-2">
+      <MediaFilterTabs />
+      {mangaTasks.error && <div className="mb-4"><MangaNotice message={`漫画下载队列不可用 · ${mangaTasks.error}`} /></div>}
+      {mangaTasks.loading && <p role="status" className="mb-3 text-xs text-[#6B6B85]"><Spinner /> 正在读取漫画队列…</p>}
+
+      <div role="group" aria-label="任务状态" className="mb-5 flex flex-wrap items-center gap-2">
         {tabs.map((item) => {
-          const count = item.id === 'all' ? tasks.length : tasks.filter((task) => task.state === item.id).length
+          const count = item.id === 'all' ? tasks.length : tasks.filter(({ task }) => task.state === item.id).length
           return (
             <button
               key={item.id}
               type="button"
+              aria-pressed={tab === item.id}
               onClick={() => setTab(item.id)}
               className={cn(
                 'h-8 rounded-full border px-3.5 text-[11px] transition',
@@ -123,20 +142,22 @@ export function TasksPage() {
         })}
       </div>
 
-      {filtered.length === 0 ? (
+      {filtered.length === 0 ? (!mangaTasks.loading && !mangaTasks.error && (
         <Card>
           <EmptyState
             icon={<Download className="h-6 w-6" />}
             title="该状态下暂无任务"
-            description="去搜索页选择一本小说，创建你的第一个 EPUB 下载任务。"
+            description="可在作品详情页选择轻小说卷或漫画章节，提交下载。"
           />
         </Card>
-      ) : (
+      )) : (
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-          {filtered.map((task) => {
+          {filtered.map((entry) => {
+            if (entry.type === 'manga') return <MangaTaskCard key={entry.id} id={entry.id} task={entry.task} />
+            const task = entry.task
             const meta = stateMeta[task.state]
             return (
-              <Card key={task.id} hoverable className="p-5">
+              <Card key={entry.id} hoverable className="p-5" data-task-id={entry.id} data-media-type="novel">
                 <div className="flex items-start gap-4">
                   <CoverArt
                     theme={task.cover}
@@ -153,7 +174,7 @@ export function TasksPage() {
                       </Badge>
                     </div>
                     <p className="mt-1 text-[10.5px] text-[#A2A2B6]">
-                      任务 {task.id} · {task.volumeLabel} · {task.chapterLabel}
+                      轻小说 · {entry.id} · {task.volumeLabel} · {task.chapterLabel}
                     </p>
                     {task.message && (
                       <p className="mt-1.5 rounded-[6px] bg-[#FFF5F8] px-2 py-1 text-[9.5px] text-[#C2377B]">{task.message}</p>
@@ -240,8 +261,8 @@ export function TasksPage() {
         <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#A78BFA]" />
         <span>
           {IS_LIVE
-            ? '每 2 秒轮询 GET /api/tasks 读取 TaskManager 的真实进度（progress.percent 与阶段）；取消与重试调用 POST /api/tasks/:id/cancel | /retry。插件没有暂停/恢复语义，故 live 模式不显示这些按钮。'
-            : '前端每 2.6 秒推进一次 Mock 进度仅用于演示动效。取消与重试只修改本地 mock 状态，不会调用真实接口。'}
+            ? '轻小说支持取消和重试。漫画列表显示 Suwayomi 当前队列，下载完成的章节可在作品详情页查看。'
+            : '演示操作只修改当前页面会话中的样例状态。'}
         </span>
       </div>
 

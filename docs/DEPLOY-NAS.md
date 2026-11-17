@@ -122,6 +122,8 @@ docker compose --profile verify run --rm verify
 
 ## 4. Web 管理台（BFF + Live 前端）
 
+漫画服务的 Compose 启动方式与环境变量见 [Suwayomi 漫画集成](./MANGA.md)。
+
 除了 DSH Agent，本仓库还提供一个**单进程 Web 管理台**：`server/serve.mjs` 同时托管 `web/dist` 静态页面与 `/api/*`，直接调用插件的 `PluginRuntime`。它不启动 DSH CLI、不调用 LLM，因此不消耗 API key，也不影响 Agent 侧配置。
 
 - 默认端口：宿主机 `5273` → 容器 `8080`

@@ -3,6 +3,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { ToastProvider } from '@/components/common/Toast'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { SearchPage } from '@/pages/SearchPage'
+import { MangaDetailPage } from '@/pages/MangaDetailPage'
 import { NovelDetailPage } from '@/pages/NovelDetailPage'
 import { LibraryPage } from '@/pages/LibraryPage'
 import { TasksPage } from '@/pages/TasksPage'
@@ -20,6 +21,7 @@ export default function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/novel/:id" element={<NovelDetailPage />} />
+            <Route path="/manga/:id" element={<MangaDetailPage />} />
             <Route path="/library" element={<LibraryPage />} />
             <Route path="/tasks" element={<TasksPage />} />
             <Route path="/sources" element={<SourcesPage />} />

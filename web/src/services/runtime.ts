@@ -53,6 +53,12 @@ function headers(init?: RequestInit): Headers {
   return result
 }
 
+export class ApiError extends Error {
+  constructor(message: string, readonly status: number, readonly retryAfterMs: number) {
+    super(message)
+  }
+}
+
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, { ...init, headers: headers(init) })
   if (!response.ok) {
@@ -63,7 +69,8 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     } catch {
       /* keep the status text */
     }
-    throw new Error(message)
+    const retrySeconds = Number(response.headers.get('retry-after'))
+    throw new ApiError(message, response.status, Number.isFinite(retrySeconds) ? Math.max(0, retrySeconds * 1000) : 0)
   }
   if (response.status === 204) return undefined as T
   return (await response.json()) as T

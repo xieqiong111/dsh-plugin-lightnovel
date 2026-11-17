@@ -15,6 +15,7 @@ export function CoverArt({
   caption,
   showTag,
   mini,
+  media = 'novel',
 }: {
   theme: CoverTheme
   index: number
@@ -23,6 +24,7 @@ export function CoverArt({
   caption?: string
   showTag?: boolean
   mini?: boolean
+  media?: 'novel' | 'manga'
 }) {
   const uid = useId().replace(/:/g, '')
   return (
@@ -32,7 +34,7 @@ export function CoverArt({
         preserveAspectRatio="xMidYMid slice"
         className="absolute inset-0 h-full w-full"
         role="img"
-        aria-label={title ? `${title} 封面插画` : '小说封面插画'}
+        aria-label={title ? `${title} 封面插画` : '封面插画'}
       >
         <defs>
           <linearGradient id={`bg-${uid}`} x1="0" y1="0" x2="1" y2="1">
@@ -68,7 +70,7 @@ export function CoverArt({
       {!mini && (
       <div className="pointer-events-none absolute inset-0 flex flex-col justify-between p-4">
         <span className="whitespace-nowrap text-[6.5px] font-semibold uppercase leading-none tracking-[0.18em] text-white/60">
-          LIGHT NOVEL / {String(index).padStart(2, '0')}
+          {media === 'manga' ? '漫画 · 演示封面' : `LIGHT NOVEL / ${String(index).padStart(2, '0')}`}
         </span>
         {(title || caption) && (
           <div>

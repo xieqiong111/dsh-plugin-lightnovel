@@ -1,3 +1,4 @@
+import { MangaHealthPanel } from '@/components/manga/MangaHealthPanel'
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Database, Info, Palette, Save, Server, ShieldCheck, SlidersHorizontal, Trash2 } from 'lucide-react'
@@ -72,7 +73,7 @@ export function SettingsPage() {
           <Card className="p-5">
             <div className="flex items-center justify-between">
               <SectionTitle title="连接与接口" className="[&_h2]:text-[18px]" />
-              <Badge tone={IS_LIVE ? 'green' : 'gray'}><Server className="h-3 w-3" /> {IS_LIVE ? 'BFF 已连接' : '待接入'}</Badge>
+              <Badge tone={IS_LIVE ? 'green' : 'gray'}><Server className="h-3 w-3" /> {IS_LIVE ? (status?.ok ? 'BFF 已连接' : '待验证') : '演示模式'}</Badge>
             </div>
             <div className="mt-4 space-y-3.5">
               <Field label="API 基础地址" hint={IS_LIVE ? '构建时由 VITE_API_BASE 决定，此处只读' : '建议仅在内网暴露'}>
@@ -180,11 +181,12 @@ export function SettingsPage() {
         </div>
 
         <div className="space-y-5">
+          <MangaHealthPanel />
           <Card className="p-5">
             <SectionTitle title="运行信息" className="[&_h2]:text-[17px]" />
             <div className="mt-3.5 space-y-2.5 text-[10px]">
               {[
-                ['前端版本', 'Lightnovel Studio 1.0.0'],
+                ['前端版本', 'Novel & Manga Studio 1.0.0'],
                 ['插件版本', 'dsh-plugin-lightnovel 1.0.0'],
                 ['运行模式', IS_LIVE ? 'Live · PluginRuntime / BFF' : 'Mock · 前端原型'],
                 ['数据接口', IS_LIVE ? `${API_BASE}/*` : '未接入'],
@@ -208,10 +210,7 @@ export function SettingsPage() {
             <p className="mt-3 text-[10px] leading-[1.9] text-[#8B8BA0]">
               {IS_LIVE ? (
                 <>
-                  HTTP 服务由 <span className="font-mono text-[9px] text-[#6C4AD9]">server/serve.mjs</span> 提供，
-                  把 <span className="font-mono text-[9px] text-[#6C4AD9]">/api/*</span> 直接映射到插件
-                  <span className="mx-1 rounded bg-[#F1EDFE] px-1.5 py-0.5 text-[#6C4AD9]">PluginRuntime</span>
-                  ，不复制业务逻辑。端点清单与环境变量见仓库 README 与 docs/DEPLOY-NAS.md。
+                  BFF 将轻小说请求交给 PluginRuntime，将漫画请求转发给 Suwayomi。Suwayomi 凭据由服务端环境变量管理。
                 </>
               ) : (
                 <>
@@ -223,7 +222,7 @@ export function SettingsPage() {
             </p>
             <div className="mt-3 flex items-start gap-1.5 rounded-[8px] bg-[#FBFAFE] px-2.5 py-2 text-[9.5px] leading-relaxed text-[#A2A2B6]">
               <Info className="mt-[1px] h-3 w-3 shrink-0 text-[#C4B5FB]" />
-              自动追更、书库导入、真实配置持久化尚未实现，均以禁用或占位形式呈现。
+              轻小说自动追更、EPUB 导入与设置持久化仍为占位。
             </div>
           </Card>
 

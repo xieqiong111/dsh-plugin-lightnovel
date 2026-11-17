@@ -13,6 +13,7 @@ import { registerNovelVolumes } from './tools/novel-volumes.js'
 import { registerNovelDownload } from './tools/novel-download.js'
 import { registerNovelTasks } from './tools/novel-tasks.js'
 import { registerNovelLibrary } from './tools/novel-library.js'
+import { registerMangaTools } from './tools/manga.js'
 
 /**
  * DeepSeek Harness / Cordis native plugin.
@@ -52,8 +53,7 @@ export function apply(ctx: Context, config: Config): void {
     logger.error('plugin', 'init_failed', { error: String(error) })
   })
 
-  // The six native tools (requirement #5). Registration is auto-tracked by
-  // Cordis and removed on unload.
+  // Native tool registrations are auto-tracked by Cordis and removed on unload.
   registerNovelSearch(ctx, runtime)
   registerNovelDetails(ctx, runtime)
   registerNovelVolumes(ctx, runtime)
@@ -61,12 +61,18 @@ export function apply(ctx: Context, config: Config): void {
   registerNovelTasks(ctx, runtime)
   registerNovelLibrary(ctx, runtime)
 
+  // Manga tools use the same configured Suwayomi client as the web BFF.
+  registerMangaTools(ctx, runtime)
+
   // Reverse-order disposer; async disposers are awaited by the fiber.
   ctx.effect(() => () => runtime.dispose())
 
   logger.info('plugin', 'applied', {
     name,
-    tools: ['novel_search', 'novel_details', 'novel_volumes', 'novel_download', 'novel_tasks', 'novel_library'],
+    tools: [
+      'novel_search', 'novel_details', 'novel_volumes', 'novel_download', 'novel_tasks', 'novel_library',
+      'manga_search', 'manga_details', 'manga_chapters', 'manga_download', 'manga_tasks', 'manga_library', 'manga_sources', 'manga_subscribe',
+    ],
     sources: resolved.enabledSources,
     searchMode: resolved.searchMode,
     offlineOnly: resolved.offlineOnly,

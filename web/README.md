@@ -1,12 +1,12 @@
-# Lightnovel Studio · Web 前端
+# Novel & Manga Studio · Web 前端
 
-DeepSeek Harness「轻小说插件」的 Web 管理前端。视觉以需求方提供的 `lightnovel-frontend-preview.png`（1600×1405）为唯一基准，逐区域还原布局、配色、卡片、表格与动效；所有界面均由真实 React 组件 + Tailwind 实现，没有把设计图当作背景。
+轻小说与漫画统一管理前端。轻小说由原插件和 Dart 生成 EPUB，漫画由独立部署的 Suwayomi 管理。前端复用现有 React 和 Tailwind 视觉组件。
 
 - 技术栈：React 18 · TypeScript 5 · Vite 6 · Tailwind CSS 3 · Lucide Icons · React Router 6
 - 数据层：同一个 UI 两种构建模式
-  - **Mock（默认）**：`web/src/data/mock.ts`，纯静态、无网络，界面标注「交互原型 · 非真实数据」
-  - **Live**：`VITE_API_MODE=live`，全部调用仓库根 `server/serve.mjs` 的 `/api/*`，由 `PluginRuntime` 驱动真实搜索、下载与 EPUB 书库
-- 状态：`npm run typecheck`、两种构建均通过；Live 模式 7 路由 + 移动端无 console error；`npm run verify:web` 49/49
+  - **Mock（默认）**：`web/src/data/mock.ts` 与 `web/src/data/mangaMock.ts`，静态样例，界面标注「演示数据」
+  - **Live**：`VITE_API_MODE=live`，全部调用仓库根 `server/serve.mjs` 的 `/api/*`，由 `PluginRuntime` 或 Suwayomi 驱动，各自保留书库和任务存储
+- 漫画接口、部署和验证见 [漫画集成说明](../docs/MANGA.md)。
 
 ---
 
@@ -41,7 +41,21 @@ npm run typecheck                    # 仅类型检查
 
 ---
 
-## 2. 目录结构
+## 2. 漫画操作
+
+- 搜索发现、我的书库、下载任务使用同一套「全部 / 轻小说 / 漫画」筛选，类型写入 Hash 路由的 `?type=`。搜索关键词写入 `?q=`。
+- 漫画结果按漫画源和资源 ID 保留版本。漫画详情 `/manga/:id` 支持章节更新、批量入队和书架成员操作。Suwayomi 以书架为追更范围，更新周期由 Suwayomi 配置。
+- 下载任务显示当前 Suwayomi 队列的真实状态和进度。漫画任务结束离开队列后，在详情页查看章节下载状态。漫画队列控制在 WebUI 中为禁用状态。
+- 资源源管理和系统设置提供漫画连接、认证、GraphQL、漫画源、章节读取检查。Live 模式下，漫画错误直接显示，轻小说页面可继续工作。
+- 统计分析当前显示轻小说数据。书库仍支持原有 EPUB 完整性校验、下载和删除。
+
+浏览器回归测试使用本机 Chrome 或 `CHROME_BIN` 指定的 Chromium。一个终端执行 `npm run build && npm run preview -- --host 127.0.0.1`，另一终端执行 `npm run verify:manga`。可用 `MANGA_WEB_URL` 指定端口，用 `MANGA_SCREENSHOTS_DIR` 导出截图。
+
+## 3. 原版页面与视觉参考
+
+以下原版设计资料和截图用于复核轻小说布局；漫画入口和当前行为以本页上方说明及漫画集成文档为准。
+
+### 目录结构（原版）
 
 ```text
 web/

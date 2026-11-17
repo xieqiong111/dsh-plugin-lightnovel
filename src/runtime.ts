@@ -11,6 +11,8 @@ import { SourceRegistry } from './sources/registry.js'
 import type { SourceContext } from './sources/types.js'
 import { PoliteFetcher } from './util/http.js'
 import type { Logger } from './util/logger.js'
+import { createSuwayomiClient } from '../server/suwayomi-client.mjs'
+import type { SuwayomiClient } from '../server/suwayomi-client.mjs'
 
 /**
  * Owns every long-lived object of one plugin instance.
@@ -29,6 +31,7 @@ export class PluginRuntime {
   readonly tasks: TaskManager
   readonly search: SearchEngine
   readonly novels: NovelService
+  readonly suwayomi: SuwayomiClient
 
   private initPromise: Promise<void> | null = null
   private dartStatus: { available: boolean; runner: string | null; reason?: string } = {
@@ -47,6 +50,7 @@ export class PluginRuntime {
       logger,
     })
     this.registry = new SourceRegistry(config, logger)
+    this.suwayomi = createSuwayomiClient()
     this.index = new LocalIndex(config.indexPath, logger)
     this.bridge = new DartBridge(config, logger)
     this.store = new TaskStore(config.tasksDir, logger)

@@ -10,6 +10,8 @@ import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import { timingSafeEqual } from 'node:crypto'
 import { TaskManagerError } from '../dist/core/tasks.js'
+import { createSuwayomiClient } from './suwayomi-client.mjs'
+import { createMangaApi } from './manga-api.mjs'
 import { rank, resolveBook } from '../dist/search.js'
 import { assertSafePublicUrl, safeResolve } from '../dist/util/paths.js'
 import {
@@ -98,7 +100,10 @@ function volumeSelector(ids, names) {
   return names.join(',')
 }
 
-export function createApi(runtime, settings, logger) {
+export function createApi(runtime, settings, logger, mangaClient = runtime.suwayomi ?? createSuwayomiClient()) {
+  const handleMangaApi = createMangaApi(mangaClient, logger, {
+    missingBffAuth: settings.mangaCredentialsConfigured && !settings.token,
+  })
   const searchUrlConfigured = Boolean(
     process.env.LN_BILINOVEL_SEARCH_URL || process.env.LN_WENKU8_SEARCH_URL,
   )
@@ -275,6 +280,8 @@ export function createApi(runtime, settings, logger) {
       sendError(res, 401, 'UNAUTHORIZED', 'Missing or invalid X-LN-Token')
       return true
     }
+
+    if (await handleMangaApi(req, res, url)) return true
 
     const segments = url.pathname
       .split('/')
