@@ -1,5 +1,5 @@
 import { mangaMock } from '@/data/mangaMock'
-import { API_BASE, IS_LIVE, apiFetch, getApiToken } from '@/services/runtime'
+import { IS_LIVE, apiFetch } from '@/services/runtime'
 import type { Manga, MangaChapter, MangaHealth, MangaSource, MangaTask } from '@/types/manga'
 
 type MangaPage = { mangas: Manga[]; hasNextPage: boolean }
@@ -30,11 +30,3 @@ const liveMangaApi = {
 }
 
 export const mangaApi: typeof liveMangaApi = IS_LIVE ? liveMangaApi : mangaMock
-
-export async function loadMangaCover(id: string, signal: AbortSignal) {
-  const token = getApiToken()
-  const headers = token ? { 'x-ln-token': token } : undefined
-  const response = await fetch(`${API_BASE}${mangaPath(id)}/cover`, { headers, signal, redirect: 'error' })
-  if (!response.ok) throw new Error('漫画封面不可用')
-  return response.blob()
-}

@@ -59,6 +59,11 @@ export class ApiError extends Error {
   }
 }
 
+function apiError(response: Response, message = `${response.status} ${response.statusText}`) {
+  const seconds = Number(response.headers.get('retry-after'))
+  return new ApiError(message, response.status, Number.isFinite(seconds) ? Math.max(0, seconds * 1000) : 0)
+}
+
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, { ...init, headers: headers(init) })
   if (!response.ok) {
@@ -69,11 +74,16 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
     } catch {
       /* keep the status text */
     }
-    const retrySeconds = Number(response.headers.get('retry-after'))
-    throw new ApiError(message, response.status, Number.isFinite(retrySeconds) ? Math.max(0, retrySeconds * 1000) : 0)
+    throw apiError(response, message)
   }
   if (response.status === 204) return undefined as T
   return (await response.json()) as T
+}
+
+export async function apiFetchBlob(path: string, signal?: AbortSignal): Promise<Blob> {
+  const response = await fetch(`${API_BASE}${path}`, { headers: headers(), signal, redirect: 'error' })
+  if (!response.ok) throw apiError(response)
+  return response.blob()
 }
 
 export async function apiDownload(path: string, fileName: string): Promise<void> {

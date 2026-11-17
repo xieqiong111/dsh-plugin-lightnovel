@@ -1,11 +1,8 @@
-import { useEffect, useState } from 'react'
-import { BookOpen } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Badge, Card } from '@/components/common/ui'
 import { CoverArt } from '@/components/novel/CoverArt'
-import { loadMangaCover } from '@/services/mangaApi'
+import { ApiCover } from '@/components/common/ApiCover'
 import { IS_LIVE } from '@/services/runtime'
-import { cn } from '@/services/utils'
 import type { Manga } from '@/types/manga'
 
 const statuses: Record<string, string> = {
@@ -33,48 +30,12 @@ export function mangaDate(value: string | number | null) {
 }
 
 export function MangaCover({ manga, className, eager = false }: { manga: Manga; className?: string; eager?: boolean }) {
-  const [image, setImage] = useState<string>()
-  const [visible, setVisible] = useState(eager)
-  const [element, setElement] = useState<HTMLDivElement | null>(null)
-
-  useEffect(() => {
-    if (!element || visible) return
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) setVisible(true)
-    }, { rootMargin: '160px' })
-    observer.observe(element)
-    return () => observer.disconnect()
-  }, [element, visible])
-
-  useEffect(() => {
-    if (!IS_LIVE || !manga.thumbnailUrl || !visible) return
-    const controller = new AbortController()
-    let url: string | undefined
-    setImage(undefined)
-    void loadMangaCover(manga.id, controller.signal).then((blob) => {
-      if (controller.signal.aborted) return
-      url = URL.createObjectURL(blob)
-      setImage(url)
-    }).catch(() => {})
-    return () => {
-      controller.abort()
-      if (url) URL.revokeObjectURL(url)
-    }
-  }, [manga.id, manga.thumbnailUrl, visible])
-
   if (manga.mockCover && !IS_LIVE) {
     return <CoverArt theme={manga.mockCover} index={0} title={manga.title} media="manga" className={className} />
   }
 
-  return (
-    <div ref={setElement} className={cn('relative grid place-items-center overflow-hidden bg-[#F1EDFE] text-[#A78BFA]', className)}>
-      {image ? (
-        <img src={image} alt={`${manga.title} 封面`} className="absolute inset-0 h-full w-full object-cover" onError={() => setImage(undefined)} />
-      ) : (
-        <BookOpen className="h-[20%] w-[20%]" aria-label="暂无封面" />
-      )}
-    </div>
-  )
+  const coverPath = IS_LIVE && manga.thumbnailUrl ? `/manga/${encodeURIComponent(manga.id)}/cover` : null
+  return <ApiCover path={coverPath} title={manga.title} className={className} eager={eager} />
 }
 
 function sourceWebsite(manga: Manga) {

@@ -32,7 +32,7 @@ DeepSeek Harness (Cordis) 原生插件：提供**轻小说搜索与 EPUB 下载�
 | `manga_sources` | 列出已安装漫画书源 |
 | `manga_subscribe` | 设置漫画是否加入 Suwayomi 书库 |
 
-`manga_subscribe` 对应 Suwayomi 的书库成员状态，不表示周期性自动追更订阅。安装步骤见 [DSH 原生漫画工具](./docs/DSH-MANGA.md)。WebUI 接口、环境变量及 NAS 部署见 [Suwayomi 漫画集成](./docs/MANGA.md)。
+`manga_subscribe` 对应 Suwayomi 的书库成员状态，不表示周期性自动追更订阅。安装步骤见 [DSH 原生漫画工具](./docs/DSH-MANGA.md)。WebUI 接口、环境变量及 NAS 部署见 [Suwayomi 漫画集成](./docs/MANGA.md)。已有 Komga 实例可通过 [Komga 书库配置](./docs/KOMGA.md) 加入 Studio。
 
 闭环示例（工具返回值均为 lossless JSON）：
 

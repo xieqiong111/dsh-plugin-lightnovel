@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   ArrowUpDown,
   BookOpen,
@@ -19,6 +19,7 @@ import { Modal } from '@/components/common/Modal'
 import { MediaFilterTabs, useMediaFilter } from '@/components/common/MediaFilter'
 import { MangaCard, MangaCover, mangaDate, mangaSource } from '@/components/manga/MangaCard'
 import { MangaNotice } from '@/components/manga/MangaNotice'
+import { KomgaLibraryPage } from '@/pages/KomgaLibraryPage'
 import { useMangaLibrary } from '@/hooks/useMangaLibrary'
 import type { UnifiedLibraryItem } from '@/types/manga'
 import { PageHeader } from '@/components/common/PageHeader'
@@ -44,6 +45,38 @@ const integrityMeta: Record<Integrity, { label: string; tone: 'violet' | 'amber'
 }
 
 export function LibraryPage() {
+  const [params, setParams] = useSearchParams()
+  const selected = params.get('provider') === 'komga' ? 'komga' : 'studio'
+  const providers = [['studio', 'Studio 书库'], ['komga', 'Komga']] as const
+  const providerTabs = (
+    <div role="group" aria-label="书库来源" className="mb-4 flex w-fit rounded-full border border-[#EDEAF6] bg-white p-1">
+      {providers.map(([provider, label]) => (
+        <button
+          key={provider}
+          type="button"
+          aria-pressed={provider === selected}
+          className={cn('h-8 rounded-full px-4 text-xs transition', provider === selected
+            ? 'bg-[#F1EDFE] font-semibold text-[#6C4AD9]'
+            : 'text-[#6B6B85] hover:text-[#6C4AD9]')}
+          onClick={() => {
+            if (provider === selected) return
+            const next = new URLSearchParams(params)
+            if (provider === 'komga') next.set('provider', provider)
+            else next.delete('provider')
+            setParams(next)
+          }}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  )
+  return selected === 'komga'
+    ? <KomgaLibraryPage providerTabs={providerTabs} />
+    : <StudioLibraryPage providerTabs={providerTabs} />
+}
+
+function StudioLibraryPage({ providerTabs }: { providerTabs: ReactNode }) {
   const { toast } = useToast()
   const type = useMediaFilter()
   const mangaLibrary = useMangaLibrary(type !== 'novel')
@@ -184,6 +217,7 @@ export function LibraryPage() {
         }
       />
 
+      {providerTabs}
       <MediaFilterTabs />
 
       {type !== 'manga' && <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">

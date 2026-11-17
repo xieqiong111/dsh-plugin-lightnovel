@@ -29,6 +29,7 @@ import http from 'node:http'
 import path from 'node:path'
 import { createApi } from './api.mjs'
 import { createSuwayomiClient } from './suwayomi-client.mjs'
+import { createKomgaClient } from './komga-client.mjs'
 import { boot, readSettings } from './runtime.mjs'
 
 const MIME = {
@@ -122,7 +123,8 @@ async function serveStatic(req, res, url, webDist) {
 const settings = readSettings()
 const { runtime, logger } = await boot(settings)
 const mangaClient = runtime.suwayomi ?? createSuwayomiClient()
-const handleApi = createApi(runtime, settings, logger, mangaClient)
+const komgaClient = runtime.komga ?? createKomgaClient()
+const handleApi = createApi(runtime, settings, logger, mangaClient, komgaClient)
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`)

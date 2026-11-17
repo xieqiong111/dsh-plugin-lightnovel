@@ -12,6 +12,7 @@ import { resolveConfig } from '../dist/config.js'
 import { PluginRuntime } from '../dist/runtime.js'
 import { createLogger } from '../dist/util/logger.js'
 import { readSuwayomiConfig } from './suwayomi-client.mjs'
+import { readKomgaConfig } from './komga-client.mjs'
 
 export const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -73,8 +74,10 @@ export function readSettings(env = process.env) {
   }
 
   const suwayomi = readSuwayomiConfig(env)
+  const komga = readKomgaConfig(env)
   return {
     mangaCredentialsConfigured: Boolean(suwayomi.username || suwayomi.password),
+    komgaCredentialsConfigured: Boolean(komga.apiKey || komga.username || komga.password),
     host: env.LN_BFF_HOST || '127.0.0.1',
     port: asInt(env.LN_BFF_PORT, 5273, 1, 65535),
     webDist: env.LN_WEB_DIST || path.join(packageRoot, 'web', 'dist'),
