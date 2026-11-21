@@ -349,6 +349,7 @@ export function createKomgaClient(config = readKomgaConfig(), options = {}) {
     return {
       id: item.id,
       name: item.name,
+      libraryId: requiredResponseId(item.libraryId, 'library ID'),
       seriesId: scope === 'series' ? id : requiredResponseId(item.seriesId, 'series ID'),
       metadata: item.metadata,
     }

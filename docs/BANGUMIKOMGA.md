@@ -26,6 +26,14 @@ Studio 通过 [BangumiKomga](https://github.com/chu-shen/BangumiKomga) 的转换
    LN_STUDIO_METADATA_TOKEN_FILE=/data/auth/studio-metadata.token
    ```
 
+## WebUI 设置
+
+在「系统设置 → 服务集成 → 刮削与书库刷新」保存设置。已有部署在服务地址和专用密钥文件路径都已配置时，默认启用刮削。关闭后，DSH 提交的搜索、预览和写入请求会返回 `BANGUMIKOMGA_DISABLED`。
+
+自动刷新默认为「同步路径后」。可改为「仅手动刷新」，或设为「同步路径或刮削写入后」，让成功写入元数据的操作也向 Komga 提交书库扫描。搜索和预览不会触发扫描。`apply` 响应中的 `updated` 表示元数据写入成功，`scan.accepted` 单独表示 Komga 是否接受后台扫描，`scan.skipped` 表示本次未启用自动扫描。
+
+管理员也可以通过 `POST /api/settings/integrations` 保存这两项设置。请求带 `action: "save-komga-preferences"`、布尔值 `scrapeEnabled` 和刷新方式 `refreshMode`（`manual`、`after-sync` 或 `after-sync-or-scrape`）。
+
 ## Agent 调用
 
 查找 Komga 系列可用 `studio_read(resource="komga")` 和 `studio_read(resource="komgaSeries", libraryId="…")`，或者从 Komga 中获取对应 ID。

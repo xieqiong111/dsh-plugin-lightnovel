@@ -17,19 +17,23 @@ it('persists an authorized library path and reports the real scan acceptance sep
   const root = await mkdtemp(path.join(os.tmpdir(), 'studio-folder-sync-'))
   const mount = path.join(root, 'manga')
   await mkdir(path.join(mount, '收藏'), { recursive: true })
+  await mkdir(path.join(mount, '其他'))
   await symlink(root, path.join(mount, 'outside'))
   const fetchImpl = vi.fn(async (input: string, _init?: RequestInit) => {
     if (input.endsWith('/api/v1/libraries')) return Response.json([
       { id: 'manga', name: '漫画', root: '/NAS/漫画/收藏' },
+      { id: 'other', name: '其他', root: '/NAS/漫画/其他' },
       { id: 'novel', name: '轻小说', root: '/NAS/轻小说' },
       { id: 'link', name: '链接', root: '/NAS/漫画/outside' },
     ])
-    if (input.endsWith('/manga/scan')) return new Response(null, { status: 202 })
+    if (input.endsWith('/manga/scan') || input.endsWith('/other/scan')) return new Response(null, { status: 202 })
     if (input.endsWith('/novel/scan')) return new Response(null, { status: 403 })
     return new Response(null, { status: 404 })
   })
   const komga = createKomgaClient({ url: 'http://komga:25600', apiKey: 'fixture' }, { fetchImpl })
+  const preferences = { refreshMode: 'after-sync' }
   const handle = createDownloadFoldersApi({
+    integrations: { preferences },
     config: { downloadFoldersFile: path.join(root, 'folders.json') },
     mangaStorageRoot: mount,
     mangaStorageLabel: '/NAS/漫画',
@@ -51,10 +55,11 @@ it('persists an authorized library path and reports the real scan acceptance sep
     return { status, body: JSON.parse(content) }
   }
   try {
-    expect((await call('GET', '/browse?kind=manga')).body.entries).toEqual(['收藏'])
+    expect((await call('GET', '/browse?kind=manga')).body.entries).toEqual(['其他', '收藏'])
     expect((await call('GET', '/komga?kind=manga', undefined, false)).status).toBe(403)
     expect((await call('GET', '/komga?kind=manga')).body.libraries).toEqual([
       { id: 'manga', name: '漫画', selectable: true, folder: '收藏' },
+      { id: 'other', name: '其他', selectable: true, folder: '其他' },
       { id: 'novel', name: '轻小说', selectable: false, folder: null },
       { id: 'link', name: '链接', selectable: false, folder: null },
     ])
@@ -66,6 +71,15 @@ it('persists an authorized library path and reports the real scan acceptance sep
     const rejected = await call('POST', '/komga', { kind: 'manga', action: 'scan', libraryId: 'novel' })
     expect(rejected.body.scan).toMatchObject({ accepted: false, message: expect.stringContaining('管理员权限') })
     expect((await call('GET', '')).body.manga.folder).toBe('收藏')
+
+    preferences.refreshMode = 'manual'
+    expect((await call('GET', '/komga?kind=manga')).body.refreshOnSync).toBe(false)
+    const noScan = await call('POST', '/komga', { kind: 'manga', action: 'sync', libraryId: 'other' })
+    expect(noScan.body).toMatchObject({ folders: { manga: { folder: '其他' } }, scan: { accepted: false, skipped: true } })
+    expect(fetchImpl.mock.calls.some(([url]) => url.endsWith('/other/scan'))).toBe(false)
+    const manual = await call('POST', '/komga', { kind: 'manga', action: 'scan', libraryId: 'other' })
+    expect(manual.body.scan).toMatchObject({ accepted: true })
+    expect(fetchImpl.mock.calls.some(([url]) => url.endsWith('/other/scan'))).toBe(true)
   } finally {
     await rm(root, { recursive: true, force: true })
   }

@@ -17,6 +17,7 @@ import { createKomgaClient } from './komga-client.mjs'
 import { isDshReadRoute } from './integrations.mjs'
 import { createKomgaApi } from './komga-api.mjs'
 import { createBangumiKomga } from './bangumi-komga.mjs'
+import { createKomgaScanner } from './komga-scan.mjs'
 import { rank, resolveBook } from '../dist/search.js'
 import { assertSafePublicUrl } from '../dist/util/paths.js'
 import {
@@ -116,8 +117,15 @@ export function createApi(
     missingBffAuth: settings.mangaCredentialsConfigured && !settings.token && !settings.auth,
   })
   const currentKomga = () => settings.integrations?.client ?? komgaClient
-  const metadata = createBangumiKomga({ url: settings.bangumiKomgaUrl, komga: currentKomga })
-  const handleDownloadFolders = createDownloadFoldersApi(settings, currentKomga)
+  const scan = createKomgaScanner()
+  const metadata = createBangumiKomga({
+    url: settings.bangumiKomgaUrl,
+    komga: currentKomga,
+    scanAfterApply: async (client, libraryId) => settings.integrations?.preferences?.refreshMode === 'after-sync-or-scrape'
+      ? await scan(client, libraryId)
+      : { accepted: false, skipped: true, message: '已跳过自动刷新。' },
+  })
+  const handleDownloadFolders = createDownloadFoldersApi(settings, currentKomga, scan)
   const handleKomgaApi = createKomgaApi({
     status: () => currentKomga().status(),
     libraries: () => currentKomga().libraries(),
@@ -321,6 +329,9 @@ export function createApi(
         const supplied = /^Bearer (studio_metadata_[A-Za-z0-9_-]{43})$/.exec(req.headers.authorization ?? '')?.[1]
         if (!supplied || !timingSafeEqual(Buffer.from(supplied), Buffer.from(secret))) {
           throw new HttpError(403, 'METADATA_AUTH_REQUIRED', '此接口需要独立的元数据密钥。')
+        }
+        if (settings.integrations?.preferences?.scrapeEnabled === false) {
+          throw new HttpError(403, 'BANGUMIKOMGA_DISABLED', '管理员已在 Studio 设置中关闭 Bangumi 元数据刮削。')
         }
         sendJson(res, 200, await metadata(metadataRoute[1], await readBody(req)))
       } catch (error) {

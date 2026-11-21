@@ -111,7 +111,7 @@ function fingerprint(metadata, patch) {
   return JSON.stringify([...new Set(['links', ...Object.keys(patch)])].map((key) => [key, metadata[key], metadata[key + 'Lock']]))
 }
 
-export function createBangumiKomga({ url, komga, fetchImpl = fetch }) {
+export function createBangumiKomga({ url, komga, scanAfterApply, fetchImpl = fetch }) {
   const previews = new Map()
   const writes = new Set()
   let active = 0
@@ -164,7 +164,7 @@ export function createBangumiKomga({ url, komga, fetchImpl = fetch }) {
     const previewId = randomBytes(24).toString('base64url')
     if (previews.size >= MAX_PREVIEWS) previews.delete(previews.keys().next().value)
     previews.set(previewId, {
-      ...type, id, result, client, patch, fingerprint: fingerprint(target.metadata, patch), expires: Date.now() + PREVIEW_MS,
+      ...type, id, result, client, patch, libraryId: target.libraryId, fingerprint: fingerprint(target.metadata, patch), expires: Date.now() + PREVIEW_MS,
     })
     return { ...result, previewId, expiresInSeconds: PREVIEW_MS / 1000 }
   }
@@ -185,12 +185,14 @@ export function createBangumiKomga({ url, komga, fetchImpl = fetch }) {
       const current = komga()
       if (current !== item.client) throw new MetadataError(409, 'KOMGA_CONFIGURATION_CHANGED', 'Komga 配置已改变，请重新预览。')
       const target = await current.metadataTarget(item.scope, item.id)
-      if (target.seriesId !== item.result.seriesId || fingerprint(target.metadata, item.patch) !== item.fingerprint) {
+      if (target.seriesId !== item.result.seriesId || target.libraryId !== item.libraryId ||
+          fingerprint(target.metadata, item.patch) !== item.fingerprint) {
         throw new MetadataError(409, 'METADATA_CHANGED', 'Komga 的当前元数据已改变，请重新预览。')
       }
       previews.delete(body.previewId)
       await current.patchMetadata(item.scope, item.id, item.patch)
-      return { ...item.result, updated: true }
+      const scan = await scanAfterApply?.(current, target.libraryId)
+      return { ...item.result, updated: true, ...(scan ? { scan } : {}) }
     } finally {
       writes.delete(key)
     }

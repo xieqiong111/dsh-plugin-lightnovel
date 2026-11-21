@@ -140,17 +140,21 @@ function KomgaDialog({ kind, label, root, onClose, onSave }: {
   const [id, setId] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const connection = useAsync(() => apiFetch<{ libraries: Library[] }>(`${komgaEndpoint}?kind=${kind}`), [kind])
+  const connection = useAsync(() => apiFetch<{ libraries: Library[]; refreshOnSync?: boolean }>(`${komgaEndpoint}?kind=${kind}`), [kind])
   const libraries = connection.data?.libraries ?? []
+  const refreshOnSync = connection.data?.refreshOnSync !== false
   const library = libraries.find((item) => item.id === id) ?? libraries.find((item) => item.selectable)
   async function submit(action: 'scan' | 'sync') {
     if (!library) return
     setBusy(true)
     setError('')
     try {
-      const result = await post<{ scan: { accepted: boolean; message: string } }>(komgaEndpoint, { kind, action, libraryId: library.id })
+      const result = await post<{ scan: { accepted: boolean; skipped?: boolean; message: string } }>(komgaEndpoint, { kind, action, libraryId: library.id })
       if (action === 'sync') onSave()
-      if (result.scan.accepted) {
+      if (result.scan.skipped && action === 'sync') {
+        toast({ tone: 'success', title: 'Komga 路径已同步' })
+        onClose()
+      } else if (result.scan.accepted) {
         toast({ tone: 'success', title: action === 'sync' ? '目录已同步，Komga 已接受刷新' : 'Komga 已接受刷新' })
         onClose()
       } else setError((action === 'sync' ? '目录已同步。' : '') + result.scan.message)
@@ -162,7 +166,7 @@ function KomgaDialog({ kind, label, root, onClose, onSave }: {
   return <Modal open onClose={() => { if (!busy) onClose() }} title={`同步${label}到 Komga 书库`}
     footer={<div className="flex flex-wrap justify-end gap-2">
       <Button size="sm" disabled={busy || !library} onClick={() => void submit('scan')}>仅刷新书库</Button>
-      <Button size="sm" variant="primary" disabled={busy || !library?.selectable} onClick={() => void submit('sync')}>同步路径并刷新</Button>
+      <Button size="sm" variant="primary" disabled={busy || !library?.selectable} onClick={() => void submit('sync')}>{refreshOnSync ? '同步路径并刷新' : '同步路径'}</Button>
     </div>}>
     <div className="space-y-3 p-5">
       {connection.loading && <p role="status" className="text-sm"><Spinner /> 读取 Komga 书库…</p>}

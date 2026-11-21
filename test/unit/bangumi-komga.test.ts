@@ -19,12 +19,13 @@ function fixture() {
   }
   const patchSeries = vi.fn()
   const patchBook = vi.fn()
+  const scan = vi.fn(() => new Response(null, { status: 202 }))
   const komga = createKomgaClient({ url: 'http://komga:25600', apiKey: 'komga-fixture-key' }, {
     fetchImpl: async (url: string, init: RequestInit) => {
       expect(init.redirect).toBe('error')
       expect(init.headers).toMatchObject({ 'X-API-Key': 'komga-fixture-key' })
-      if (url.endsWith('/series/series-a')) return Response.json({ id: 'series-a', name: '系列', metadata: state })
-      if (url.endsWith('/books/book-a')) return Response.json({ id: 'book-a', name: '卷', seriesId: 'series-a', metadata: book })
+      if (url.endsWith('/series/series-a')) return Response.json({ id: 'series-a', name: '系列', libraryId: 'library-a', metadata: state })
+      if (url.endsWith('/books/book-a')) return Response.json({ id: 'book-a', name: '卷', seriesId: 'series-a', libraryId: 'library-b', metadata: book })
       if (url.endsWith('/series/series-a/metadata') && init.method === 'PATCH') {
         patchSeries(JSON.parse(String(init.body)))
         return new Response(null, { status: 204 })
@@ -37,6 +38,7 @@ function fixture() {
         expect(JSON.parse(String(init.body)).condition.allOf[0]).toEqual({ seriesId: { operator: 'is', value: 'series-a' } })
         return Response.json({ content: [{ id: 'book-a', name: '卷', seriesId: 'series-a', metadata: book }], number: 0, last: true })
       }
+      if (/\/libraries\/(library-a|library-b)\/scan$/.test(url) && init.method === 'POST') return scan()
       return new Response(null, { status: 404 })
     },
   })
@@ -53,7 +55,7 @@ function fixture() {
     return Response.json({ subject, metadata })
   })
   const run = createBangumiKomga({ url: 'http://bangumikomga:8091', komga: () => komga, fetchImpl: adapterFetch })
-  return { run, state, adapterFetch, patchSeries, patchBook }
+  return { run, state, adapterFetch, patchSeries, patchBook, komga, scan }
 }
 
 describe('BangumiKomga metadata', () => {
@@ -100,6 +102,63 @@ describe('BangumiKomga metadata', () => {
     adapterFetch.mockRejectedValueOnce(new Error('connection failed'))
     await expect(run('search', { ...seriesInput, query: '测试' })).rejects.toMatchObject({ code: 'BANGUMIKOMGA_UNAVAILABLE' })
     expect(patchSeries).not.toHaveBeenCalled()
+  })
+
+  it('enforces both settings for existing metadata previews and keeps scan failure separate from writing', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'studio-metadata-preferences-'))
+    const tokenFile = path.join(dir, 'token')
+    const token = 'studio_metadata_' + 'a'.repeat(43)
+    const { komga, adapterFetch, patchSeries, scan } = fixture()
+    const preferences = { scrapeEnabled: true, refreshMode: 'after-sync' }
+    await writeFile(tokenFile, token, { mode: 0o600 })
+    vi.stubGlobal('fetch', adapterFetch)
+    try {
+      const api = createApi({}, {
+        bangumiKomgaUrl: 'http://bangumikomga:8091', metadataTokenFile: tokenFile,
+        integrations: { client: komga, preferences },
+      }, { warn() {} })
+      async function call(action: string, body: object) {
+        const req = {
+          method: 'POST', headers: { authorization: `Bearer ${token}` },
+          async *[Symbol.asyncIterator]() { yield Buffer.from(JSON.stringify(body)) },
+        }
+        const res = {
+          status: 0, body: '',
+          writeHead(code: number) { this.status = code },
+          end(body: string) { this.body = body },
+        }
+        await api(req, res, new URL('/api/komga/metadata/' + action, 'http://studio.local'))
+        return { status: res.status, body: JSON.parse(res.body) }
+      }
+      const first = await call('preview', seriesInput)
+      preferences.scrapeEnabled = false
+      expect(await call('apply', { previewId: first.body.previewId })).toMatchObject({
+        status: 403, body: { error: { code: 'BANGUMIKOMGA_DISABLED' } },
+      })
+      expect(patchSeries).not.toHaveBeenCalled()
+      expect(scan).not.toHaveBeenCalled()
+      preferences.scrapeEnabled = true
+      expect(await call('apply', { previewId: first.body.previewId })).toMatchObject({
+        status: 200, body: { updated: true, scan: { accepted: false, skipped: true } },
+      })
+      expect(scan).not.toHaveBeenCalled()
+
+      preferences.refreshMode = 'after-sync-or-scrape'
+      const book = await call('preview', { ...seriesInput, kind: 'novel', scope: 'book', bookId: 'book-a' })
+      expect(await call('apply', { previewId: book.body.previewId })).toMatchObject({
+        status: 200, body: { updated: true, scan: { accepted: true } },
+      })
+      expect(scan).toHaveBeenCalledOnce()
+      scan.mockImplementationOnce(() => new Response(null, { status: 403 }))
+      const second = await call('preview', seriesInput)
+      expect(await call('apply', { previewId: second.body.previewId })).toMatchObject({
+        status: 200, body: { updated: true, scan: { accepted: false, message: expect.stringContaining('管理员权限') } },
+      })
+      expect(patchSeries).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.unstubAllGlobals()
+      await rm(dir, { recursive: true, force: true })
+    }
   })
 
   it('separates the metadata bearer from existing Studio access', async () => {
