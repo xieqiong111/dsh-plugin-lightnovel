@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { mkdir, symlink, realpath, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -87,6 +87,31 @@ describe('Library (requirement #9)', () => {
     await reloaded.load()
     expect(reloaded.get(entry!.id)!.title).toBe('星海/旅途')
     expect(reloaded.stats().total).toBe(1)
+  })
+
+  it('uses the chosen EPUB directory and keeps old entries readable across changes', async () => {
+    const source = await seedEpub()
+    const root = path.join(dir, 'storage')
+    const settingsFile = path.join(dir, 'folders.json')
+    await mkdir(path.join(root, '小说'), { recursive: true })
+    const storage = { root, settingsFile }
+    const lib = new Library(dir, logger, storage)
+    const input = {
+      artifact: { path: source, volumeNames: ['第一卷'], chapters: 1, bytes: 0, sha256: null, integrity: 'pending' as const, integrityError: null },
+      title: '星海旅途', author: '测试作者', sourceId: 'fixture', bookId: 'fixture:one', taskId: 'task_1',
+    }
+    const original = (await lib.add(input))!
+    await writeFile(settingsFile, JSON.stringify({ novelFolder: '小说', mangaFolder: '', mangaPrevious: [] }))
+    const redirected = (await lib.add(input))!
+    const reloaded = new Library(dir, logger, storage)
+    await reloaded.load()
+    expect(reloaded.stats().total).toBe(2)
+    expect(await reloaded.filePath(original)).toBe(path.join(dir, original.relativePath))
+    expect(await reloaded.filePath(redirected)).toBe(path.join(await realpath(root), '小说', redirected.relativePath))
+    expect((await reloaded.verify()).every((item) => item.ok)).toBe(true)
+    await symlink(dir, path.join(root, 'link'))
+    await writeFile(settingsFile, JSON.stringify({ novelFolder: 'link', mangaFolder: '', mangaPrevious: [] }))
+    await expect(reloaded.add(input)).rejects.toThrow('must be a directory')
   })
 
   it('list / get / stats / checksums / remove', async () => {

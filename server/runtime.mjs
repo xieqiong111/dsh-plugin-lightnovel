@@ -50,6 +50,8 @@ export function readSettings(env = process.env) {
   const config = {
     dataDir,
     libraryDir,
+    novelStorageRoot: env.LN_NOVEL_STORAGE_ROOT || '',
+    downloadFoldersFile: env.LN_DOWNLOAD_FOLDERS_FILE || '',
     dartBinary: '',
     dartProjectDir: '',
     fixturesDir: env.LN_FIXTURES_DIR || '',
@@ -76,6 +78,9 @@ export function readSettings(env = process.env) {
   const suwayomi = readSuwayomiConfig(env)
   const komga = readKomgaConfig(env)
   return {
+    mangaStorageRoot: env.LN_MANGA_STORAGE_ROOT || '',
+    novelStorageLabel: env.LN_NOVEL_STORAGE_LABEL || '',
+    mangaStorageLabel: env.LN_MANGA_STORAGE_LABEL || '',
     mangaCredentialsConfigured: Boolean(suwayomi.username || suwayomi.password),
     komgaCredentialsConfigured: Boolean(komga.apiKey || komga.username || komga.password),
     host: env.LN_BFF_HOST || '127.0.0.1',

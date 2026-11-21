@@ -9,7 +9,9 @@ services:
     command: [python, -B, /app/archive.py, --output, /library, --connection-file, /run/suwayomi.json, --interval, "60", --status-port, "8788", --progress-interval, "15"]
     environment:
       TMPDIR: /library
+      LN_DOWNLOAD_FOLDERS_FILE: /storage-settings/download-folders.json
     volumes:
+      - ${LN_DOWNLOAD_SETTINGS_HOST:-./settings}:/storage-settings:ro
       - ./archive.py:/app/archive.py:ro
       - ${SUWAYOMI_VOLUME_CONNECTION_FILE:?set SUWAYOMI_VOLUME_CONNECTION_FILE}:/run/suwayomi.json:ro
       - ${SUWAYOMI_VOLUME_OUTPUT_DIR:?set SUWAYOMI_VOLUME_OUTPUT_DIR}:/library

@@ -1,3 +1,4 @@
+import { DownloadFolders } from '@/components/layout/DownloadFolders'
 import { MangaHealthPanel } from '@/components/manga/MangaHealthPanel'
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -47,7 +48,7 @@ export function SettingsPage() {
         title="系统设置"
         description={
           IS_LIVE
-            ? accountAuth ? '查看服务连接与运行信息。' : '运行信息读取自插件运行时（GET /api/status）。访问令牌仅保存在本浏览器 localStorage；服务端配置需通过环境变量修改，本页不提供写入接口。'
+            ? accountAuth ? '查看服务连接与运行信息。' : '运行信息读取自插件运行时（GET /api/status）。访问令牌仅保存在本浏览器。'
             : '前端演示用配置面板。除界面偏好外，所有与后端相关的字段都不会真正保存或生效。'
         }
         actions={
@@ -74,6 +75,7 @@ export function SettingsPage() {
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-5">
+          {IS_LIVE && <DownloadFolders />}
           <Card className="p-5">
             <div className="flex items-center justify-between">
               <SectionTitle title="连接与接口" className="[&_h2]:text-[18px]" />

@@ -119,6 +119,8 @@ export interface LibraryEntry {
     chapterCount: number;
     /** Path relative to the library root — never an absolute path. */
     relativePath: string;
+    /** Optional subfolder under the configured novel storage mount. */
+    storageFolder?: string;
     bytes: number;
     sha256: string;
     createdAt: string;

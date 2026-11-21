@@ -409,3 +409,11 @@ docker compose -f docker-compose.web.yml exec web cat /data/auth/setup-code
 通过 HTTPS 反代访问时，设置 `LN_STUDIO_SECURE_COOKIE=true`。反代改写 Host 时，还需设置 `LN_STUDIO_WEB_ORIGIN` 为浏览器看到的完整 origin。账号登录使用同源部署。独立脚本可继续使用已配置的 `LN_BFF_TOKEN`，DSH 原生工具仍连接原有的 Docker 服务。
 
 直接运行 `node server/serve.mjs` 时，可通过 `LN_STUDIO_ACCOUNTS=true` 启用账号登录。纯 Mock 模式不请求登录接口。
+
+## 分别设置下载保存目录
+
+登录后打开「系统设置 → 下载保存目录」。可以分别浏览轻小说 EPUB 和漫画 CBZ 的共享目录，选择已有子目录或新建并使用。切换后，新生成的文件会写入新位置。旧文件及索引留在原目录，仍然可访问。轻小说可以恢复 Studio 原默认路径。漫画选项改变的是 CBZ 归档位置，Suwayomi 自己的章节缓存仍由 Suwayomi 管理。
+
+Docker 部署在 `.env` 中指定 `LN_NOVEL_STORAGE_HOST`、`LN_MANGA_STORAGE_HOST`、`LN_DOWNLOAD_SETTINGS_HOST`，并提前创建这三个目录。要使用 Komga，前两个路径应分别位于它对应的书库里。归档容器和 Studio 需共享同一个 `LN_DOWNLOAD_SETTINGS_HOST`，并将 `SUWAYOMI_VOLUME_OUTPUT_DIR` 设置为 Studio 的 `LN_MANGA_STORAGE_HOST`。独立 Compose 请使用绝对路径。Suwayomi 归档服务读取设置后，下一次扫描生效。Dart 独立 DSH 进程的小说保存路径仍由其插件配置控制。
+
+接口为 `GET /api/settings/download-folders`、`GET /api/settings/download-folders/browse?kind=novel&folder=`、`POST /api/settings/download-folders`。提交相对于各自挂载的路径，如 `{"kind":"novel","folder":"收藏","create":true}`。仅支持已挂载根目录下的目录，拒绝符号链接和越界路径。

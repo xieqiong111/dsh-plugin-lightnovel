@@ -11,11 +11,12 @@ import path from 'node:path'
 import { timingSafeEqual } from 'node:crypto'
 import { TaskManagerError } from '../dist/core/tasks.js'
 import { createSuwayomiClient } from './suwayomi-client.mjs'
+import { createDownloadFoldersApi } from './download-folders-api.mjs'
 import { createMangaApi } from './manga-api.mjs'
 import { createKomgaClient } from './komga-client.mjs'
 import { createKomgaApi } from './komga-api.mjs'
 import { rank, resolveBook } from '../dist/search.js'
-import { assertSafePublicUrl, safeResolve } from '../dist/util/paths.js'
+import { assertSafePublicUrl } from '../dist/util/paths.js'
 import {
   toActivities,
   toLibraryItem,
@@ -109,6 +110,7 @@ export function createApi(
   mangaClient = runtime.suwayomi ?? createSuwayomiClient(),
   komgaClient = runtime.komga ?? createKomgaClient(),
 ) {
+  const handleDownloadFolders = createDownloadFoldersApi(settings)
   const handleMangaApi = createMangaApi(mangaClient, logger, {
     missingBffAuth: settings.mangaCredentialsConfigured && !settings.token && !settings.auth,
   })
@@ -263,7 +265,9 @@ export function createApi(
   async function libraryFile(id, req, res) {
     const entry = runtime.library.get(id)
     if (!entry) throw new HttpError(404, 'FILE_NOT_FOUND', `Unknown library entry: ${id}`)
-    const absolute = safeResolve(runtime.config.libraryDir, entry.relativePath)
+    const absolute = await runtime.library.filePath(entry).catch(() => {
+      throw new HttpError(404, 'FILE_MISSING', 'EPUB file is missing from disk')
+    })
     const info = await stat(absolute).catch(() => {
       throw new HttpError(404, 'FILE_MISSING', 'EPUB file is missing from disk')
     })
@@ -298,6 +302,7 @@ export function createApi(
       return true
     }
 
+    if (await handleDownloadFolders(req, res, url)) return true
     if (await handleMangaApi(req, res, url)) return true
     if (await handleKomgaApi(req, res, url)) return true
 

@@ -47,6 +47,8 @@ export interface Config {
   extraTraditionalMap: string
   /** Private JSON file with Suwayomi and Komga archive connection variables. */
   mangaConnectionFile?: string
+  novelStorageRoot?: string
+  downloadFoldersFile?: string
 }
 
 /** Runtime schema. Exported as `Config` because the Cordis loader looks it up. */
@@ -71,6 +73,8 @@ export const Config: Schema<Config> = Schema.object({
   logLevel: Schema.union(['debug', 'info', 'warn', 'error']).default('info'),
   extraTraditionalMap: Schema.string().default(''),
   mangaConnectionFile: Schema.string().default(''),
+  novelStorageRoot: Schema.string().default(''),
+  downloadFoldersFile: Schema.string().default(''),
 })
 
 export interface ResolvedConfig extends Config {

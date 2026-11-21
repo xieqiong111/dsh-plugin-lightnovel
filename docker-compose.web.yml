@@ -45,6 +45,11 @@ services:
       LN_BFF_PORT: 8080
       LN_WEB_DIST: /opt/lightnovel/web/dist
       LN_BFF_DATA_DIR: /data
+      LN_NOVEL_STORAGE_ROOT: /storage/novel
+      LN_MANGA_STORAGE_ROOT: /storage/manga
+      LN_NOVEL_STORAGE_LABEL: "${LN_NOVEL_STORAGE_HOST:-./data/novel-downloads}"
+      LN_MANGA_STORAGE_LABEL: "${LN_MANGA_STORAGE_HOST:-./data/manga-downloads}"
+      LN_DOWNLOAD_FOLDERS_FILE: /storage-settings/download-folders.json
       LN_BFF_LIBRARY_DIR: /data/library
       LN_FIXTURES_DIR: /opt/lightnovel/test/fixtures
       LN_DART_BINARY: /opt/bnp/bnp_headless
@@ -82,6 +87,9 @@ services:
     volumes:
       # Mutable state: library EPUBs, task records, logs and the local index.
       - "${LN_STUDIO_DATA_DIR:-${LN_DATA_DIR:-./data}}:/data"
+      - "${LN_NOVEL_STORAGE_HOST:-./data/novel-downloads}:/storage/novel"
+      - "${LN_MANGA_STORAGE_HOST:-./data/manga-downloads}:/storage/manga"
+      - "${LN_DOWNLOAD_SETTINGS_HOST:-./data/download-settings}:/storage-settings"
       # Code and build artefacts are mounted read-only; rebuild on the host and
       # restart the container, no image rebuild needed.
       - "./server:/opt/lightnovel/server:ro"

@@ -249,18 +249,55 @@ def archive_signature(chapters):
                       separators=(",", ":")).encode()
 
 
-def volume_catalog(client, root, manga_id):
+def storage_roots(root, settings):
+    if not settings:
+        return root, []
+    try:
+        data = json.loads(settings.read_text())
+    except FileNotFoundError:
+        return root, []
+
+    def subfolder(relative):
+        result = root
+        for name in relative.split("/") if relative else []:
+            if not name or name.startswith(".") or re.search(r"[\\:\x00-\x1f\x7f]", name):
+                raise ArchiveError("invalid storage subfolder")
+            result = result / name
+            if result.is_symlink() or not result.is_dir():
+                raise ArchiveError("storage subfolder unavailable")
+        return result
+
+    current = subfolder(data["mangaFolder"])
+    previous = []
+    for name in data["mangaPrevious"]:
+        try:
+            previous.append(subfolder(name))
+        except ArchiveError:
+            continue
+    return current, previous
+
+
+def volume_path(root, previous, manga, number):
+    filename = f"第{number:02}卷.cbz"
+    target = series_directory(root, manga) / filename
+    for parent in [root, *previous]:
+        existing = series_directory(parent, manga) / filename
+        if existing.exists() or existing.is_symlink():
+            return existing
+    return target
+
+
+def volume_catalog(client, root, manga_id, previous=()):
     manga = client.manga(manga_id)
     if not manga or str(manga["sourceId"]) == "0":
         return {"volumes": []}
     chapters = list(islice(client.manga_chapters(manga_id), 5001))
     if len(chapters) > 5000:
         raise ArchiveError("chapter catalog exceeds lookup limit")
-    folder = series_directory(root, manga)
     volumes = []
     for number, selected in planned_volumes(chapters):
         filename = f"第{number:02}卷.cbz"
-        destination = folder / filename
+        destination = volume_path(root, previous, manga, number)
         archived = False
         if destination.is_file() and not destination.is_symlink():
             try:
@@ -277,7 +314,7 @@ def volume_catalog(client, root, manga_id):
     return {"volumes": volumes}
 
 
-def start_status_server(client, root, port):
+def start_status_server(client, root, port, settings=None):
     class Handler(BaseHTTPRequestHandler):
         def setup(self):
             self.request.settimeout(5)
@@ -289,7 +326,8 @@ def start_status_server(client, root, port):
                 if self.path == "/downloads":
                     result = client.download_status()
                 elif match and int(match[1]) <= 2**31 - 1:
-                    result = volume_catalog(client, root, int(match[1]))
+                    current, previous = storage_roots(root, settings)
+                    result = volume_catalog(client, current, int(match[1]), previous)
                 else:
                     self.send_error(404)
                     return
@@ -312,9 +350,9 @@ def start_status_server(client, root, port):
     return server
 
 
-def archive_volume(client, root, manga, volume, chapters):
-    folder = series_directory(root, manga)
-    destination = folder / f"第{volume:02}卷.cbz"
+def archive_volume(client, root, manga, volume, chapters, previous=()):
+    destination = volume_path(root, previous, manga, volume)
+    folder = destination.parent
     signature = archive_signature(chapters)
     if len(signature) > 65535:
         raise ArchiveError("too many chapters for one volume archive")
@@ -358,7 +396,7 @@ def archive_volume(client, root, manga, volume, chapters):
     return True
 
 
-def run_once(client, root):
+def run_once(client, root, previous=()):
     mangas = client.downloaded_mangas()
     failures = 0
     exported = 0
@@ -367,7 +405,7 @@ def run_once(client, root):
             chapters = list(client.manga_chapters(manga_id))
             for volume, selected in complete_volumes(chapters):
                 try:
-                    exported += archive_volume(client, root, manga, volume, selected)
+                    exported += archive_volume(client, root, manga, volume, selected, previous)
                 except (ArchiveError, OSError, BadZipFile, RuntimeError) as exc:
                     failures += 1
                     logging.error("manga %s volume %s: %s", manga_id, volume, exc)
@@ -409,6 +447,7 @@ def main():
     parser.add_argument("--interval", type=int, default=0, help="seconds between polls; zero runs once")
     parser.add_argument("--status-port", type=int, help="internal HTTP status port")
     parser.add_argument("--progress-interval", type=int, default=0, help="seconds between download progress checks")
+    parser.add_argument("--settings-file", type=Path, default=os.environ.get("LN_DOWNLOAD_FOLDERS_FILE") or None)
     args = parser.parse_args()
     if args.progress_interval and (not args.interval or args.progress_interval < 5):
         parser.error("--progress-interval requires archive polling and a minimum of 5 seconds")
@@ -426,13 +465,14 @@ def main():
             for stale in args.output.glob(".suwayomi-*.tmp"):
                 stale.unlink()
             if args.status_port:
-                start_status_server(client, args.output, args.status_port)
+                start_status_server(client, args.output, args.status_port, args.settings_file)
             if args.progress_interval:
                 Thread(target=log_download_progress, args=(client, args.progress_interval), daemon=True).start()
             logging.info("Suwayomi volume exporter started (interval: %ds)", args.interval)
             while True:
                 try:
-                    failures = run_once(client, args.output)
+                    current, previous = storage_roots(args.output, args.settings_file)
+                    failures = run_once(client, current, previous)
                 except (ArchiveError, OSError, ValueError, TypeError, KeyError) as exc:
                     logging.error("export scan failed: %s", exc)
                     failures = 1

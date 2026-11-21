@@ -70,7 +70,9 @@ export class PluginRuntime {
     this.index = new LocalIndex(config.indexPath, logger)
     this.bridge = new DartBridge(config, logger)
     this.store = new TaskStore(config.tasksDir, logger)
-    this.library = new Library(config.libraryDir, logger)
+    this.library = new Library(config.libraryDir, logger, config.novelStorageRoot && config.downloadFoldersFile ? {
+      root: config.novelStorageRoot, settingsFile: config.downloadFoldersFile,
+    } : undefined)
 
     const sourceContext: SourceContext = { config, fetcher: this.fetcher, logger }
     this.search = new SearchEngine(config, this.registry, this.index, sourceContext, logger)

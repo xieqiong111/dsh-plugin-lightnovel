@@ -6,7 +6,7 @@ from unittest.mock import patch
 from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
 
-from archive import ArchiveError, Suwayomi, archive_volume, complete_volumes, volume_catalog, volume_label
+from archive import ArchiveError, Suwayomi, archive_volume, complete_volumes, storage_roots, volume_catalog, volume_label
 
 
 def chapter(chapter_id, name, downloaded=True, page_count=3):
@@ -93,6 +93,27 @@ class VolumeArchiveTests(unittest.TestCase):
             result = client.download_status()
         self.assertEqual(result["queue"][0]["percent"], 38)
         self.assertIsNone(result["queue"][1]["percent"])
+
+    def test_changing_storage_keeps_previous_volume_and_redirects_new_one(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            settings = root / "download-folders.json"
+            (root / "新目录").mkdir()
+            client = FakeSuwayomi()
+            manga = {"id": 1, "sourceId": "2", "title": "樣本"}
+            one = chapter(10, "第1卷")
+            two = chapter(11, "第2卷")
+            archive_volume(client, root, manga, 1, [one])
+            settings.write_text('{"mangaFolder":"新目录","mangaPrevious":[""]}')
+            current, previous = storage_roots(root, settings)
+            self.assertFalse(archive_volume(client, current, manga, 1, [one], previous))
+            self.assertTrue(archive_volume(client, current, manga, 2, [two], previous))
+            self.assertEqual(len(list(root.glob("*/*.cbz"))), 1)
+            self.assertEqual(len(list(current.glob("*/*.cbz"))), 1)
+            (root / "link").symlink_to(current, target_is_directory=True)
+            settings.write_text('{"mangaFolder":"link","mangaPrevious":[]}')
+            with self.assertRaises(ArchiveError):
+                storage_roots(root, settings)
 
     def test_failed_refresh_preserves_existing_archive(self):
         with tempfile.TemporaryDirectory() as directory:

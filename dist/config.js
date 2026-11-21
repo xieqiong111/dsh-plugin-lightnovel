@@ -22,6 +22,8 @@ export const Config = Schema.object({
     logLevel: Schema.union(['debug', 'info', 'warn', 'error']).default('info'),
     extraTraditionalMap: Schema.string().default(''),
     mangaConnectionFile: Schema.string().default(''),
+    novelStorageRoot: Schema.string().default(''),
+    downloadFoldersFile: Schema.string().default(''),
 });
 /** Resolve environment-dependent defaults once, at load time. */
 export function resolveConfig(config, packageRoot, homedir) {
