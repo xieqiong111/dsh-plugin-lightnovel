@@ -2,7 +2,7 @@
 
 在 Studio 中打开 **我的书库 → Komga**。切换 Komga 书库后，可以搜索标题、分页浏览系列、查看封面、册数和已读数量。书库与查询保存在当前页面的 URL 中。已读数量以 Studio 使用的 Komga 凭据为准。
 
-Studio 以只读方式浏览 Komga 中已建立的书库。媒体文件、扫描和阅读记录由 Komga 管理。轻小说 EPUB 与 Suwayomi 漫画仍从同一页面的 **Studio 书库** 打开。
+Studio 通过 Komga API 浏览已建立的书库。媒体文件、扫描和阅读记录由 Komga 管理。轻小说 EPUB 与 Suwayomi 漫画仍从同一页面的 **Studio 书库** 打开。
 
 ## 连接现有 Komga
 
@@ -24,6 +24,8 @@ LN_KOMGA_API_KEY=
 Docker 版默认使用管理员会话保护这些接口。仅使用兼容脚本模式时，可在服务端配置独立的 `LN_BFF_TOKEN`。Studio 对 Komga 的请求使用服务端凭据，浏览器无需持有此密钥。
 
 向目录写入 CBZ 与浏览书库是两项独立功能。文件输出位置由 [分卷归档服务](MANGA-VOLUME-CBZ.md)管理，Komga 扫描后才会显示新增文件。
+
+[NAS 目录选择与 Komga 路径同步](../web/README.md#同步-komga-书库路径)需要让 Studio 和 Komga 都能访问目标目录。同步时由 Studio 请求 Komga 后台扫描，Komga API Key 需要管理员权限。
 
 ## 接口
 

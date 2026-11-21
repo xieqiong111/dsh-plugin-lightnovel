@@ -50,20 +50,23 @@ function sourceWebsite(manga: Manga) {
 
 export function MangaCard({ manga, library = false }: { manga: Manga; library?: boolean }) {
   return (
-    <Card hoverable className="min-w-0 overflow-hidden p-[6px]" data-media-type="manga" data-resource-id={manga.id}>
-      <Link to={`/manga/${encodeURIComponent(manga.id)}`} className="block rounded-[11px] focus-visible:outline-violet-400">
+    <Card hoverable className="flex min-w-0 flex-col overflow-hidden p-[6px]" data-media-type="manga" data-resource-id={manga.id}>
+      <Link to={`/manga/${encodeURIComponent(manga.id)}`} className="flex h-full min-w-0 flex-col rounded-[11px] focus-visible:outline-violet-400">
         <MangaCover manga={manga} className="aspect-[3/4] w-full rounded-[11px]" />
-        <div className="space-y-1.5 px-2 pb-2 pt-3">
+        <div className="flex flex-1 flex-col space-y-1.5 px-2 pb-2 pt-3">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h3 className="min-w-0 truncate text-[13px] font-bold text-[#2B2C44]" title={manga.title}>{manga.title}</h3>
-            <Badge>漫画</Badge>
+            <h3 className="min-w-0 flex-[1_1_7rem] break-words text-[13px] font-bold leading-snug text-[#2B2C44]" title={manga.title}>{manga.title}</h3>
+            <Badge className="shrink-0">漫画</Badge>
           </div>
           <p className="truncate text-[11px] text-[#6B6B85]">{mangaSource(manga)} · {mangaStatus(manga.status)}</p>
           {library ? (
-            <p className="text-[10px] leading-relaxed text-[#6B6B85]">
+            <>
+            <p className="break-words text-[10px] leading-relaxed text-[#6B6B85]">
               Suwayomi 章节 · {manga.downloadCount === null ? '下载状态未知' : `已下载 ${manga.downloadCount}${manga.chapterCount === null ? '' : `/${manga.chapterCount}`} 章`}
               <br />更新 {mangaDate(manga.updatedAt)} · ID {manga.id}
             </p>
+            <span className="mt-auto block pt-2"><span className="flex h-8 items-center justify-center rounded-full bg-[#F1EDFE] text-[11px] font-medium text-[#6C4AD9]">漫画详情</span></span>
+            </>
           ) : (
             <>
               <p className="truncate text-[11px] text-[#6B6B85]">

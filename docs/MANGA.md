@@ -1,6 +1,6 @@
 # Suwayomi 漫画集成
 
-Novel & Manga Studio 使用同一个 WebUI 和 BFF。小说请求继续走 PluginRuntime 和 Dart，漫画请求由共享适配器调用 Suwayomi。两套服务分别保存资源、任务和下载文件。DSH 原生工具的安装与验证见 [DSH-MANGA.md](./DSH-MANGA.md)。
+Novel & Manga Library 使用同一个 WebUI 和 BFF。小说请求继续走 PluginRuntime 和 Dart，漫画请求由共享适配器调用 Suwayomi。两套服务分别保存资源、任务和下载文件。DSH 原生工具的安装与验证见 [DSH-MANGA.md](./DSH-MANGA.md)。
 
 ## 飞牛 NAS 部署
 

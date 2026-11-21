@@ -1,7 +1,7 @@
 {
   "name": "dsh-plugin-lightnovel",
   "version": "1.0.0",
-  "description": "Self-hosted novel and manga studio with Dart EPUB downloads, Suwayomi CBZ archiving, Komga and native DeepSeek Harness tools.",
+  "description": "Novel & Manga Library: a self-hosted library with Dart EPUB downloads, Suwayomi CBZ archiving, Komga and native DeepSeek Harness tools.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

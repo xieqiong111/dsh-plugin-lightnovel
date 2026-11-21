@@ -67,9 +67,9 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
               <BookOpen className="h-[19px] w-[19px] text-white" strokeWidth={1.9} />
             </div>
             <div className="leading-tight">
-              <p className="text-[14px] font-bold text-white">轻小说与漫画管理中心</p>
+              <p className="text-[14px] font-bold text-white">轻小说与漫画书库</p>
               <p className="mt-1 text-[8px] font-semibold uppercase tracking-[0.15em] text-[#9395BE]">
-                Novel &amp; Manga Studio
+                Novel &amp; Manga Library
               </p>
             </div>
           </div>

@@ -1,6 +1,6 @@
 # Studio WebUI
 
-Novel & Manga Studio 的管理界面使用 React、TypeScript 和 Vite。搜索、书库和下载任务支持按轻小说和漫画筛选。小说详情、漫画详情以及当前页面的筛选可通过 URL 保留。
+Novel & Manga Library 的管理界面使用 React、TypeScript 和 Vite。搜索、书库和下载任务支持按轻小说和漫画筛选。小说详情、漫画详情以及当前页面的筛选可通过 URL 保留。
 
 ## 本地预览与 Live 部署
 
@@ -43,11 +43,17 @@ docker compose -f docker-compose.web.yml exec web cat /data/auth/setup-code
 
 ## 分别设置下载保存目录
 
-登录后打开「系统设置 → 下载保存目录」。可以分别浏览轻小说 EPUB 和漫画 CBZ 的共享目录，选择已有子目录或新建并使用。切换后，新生成的文件会写入新位置。旧文件及索引留在原目录，仍然可访问。轻小说可以恢复 Studio 原默认路径。漫画选项改变的是 CBZ 归档位置，Suwayomi 自己的章节缓存仍由 Suwayomi 管理。
+登录后打开「系统设置 → NAS 保存目录」。点击「浏览 NAS」，在文件夹列表中逐级进入子目录，也可以点目录层级跳回上级。轻小说 EPUB 和漫画 CBZ 分开设置，可选择已有目录或新建后使用。切换后，新生成的文件会写入新位置。旧文件及索引留在原目录，仍然可访问。轻小说可以恢复 Studio 原默认路径。漫画选项改变的是 CBZ 归档位置，Suwayomi 自己的章节缓存仍由 Suwayomi 管理。
 
 Docker 部署在 `.env` 中指定 `LN_NOVEL_STORAGE_HOST`、`LN_MANGA_STORAGE_HOST`、`LN_DOWNLOAD_SETTINGS_HOST`，并提前创建这三个目录。要使用 Komga，前两个路径应分别位于它对应的书库里。归档容器和 Studio 需共享同一个 `LN_DOWNLOAD_SETTINGS_HOST`，并将 `SUWAYOMI_VOLUME_OUTPUT_DIR` 设置为 Studio 的 `LN_MANGA_STORAGE_HOST`。独立 Compose 请使用绝对路径。Suwayomi 归档服务读取设置后，下一次扫描生效。Dart 独立 DSH 进程的小说保存路径仍由其插件配置控制。
 
 接口为 `GET /api/settings/download-folders`、`GET /api/settings/download-folders/browse?kind=novel&folder=`、`POST /api/settings/download-folders`。提交相对于各自挂载的路径，如 `{"kind":"novel","folder":"收藏","create":true}`。仅支持已挂载根目录下的目录，拒绝符号链接和越界路径。
+
+### 同步 Komga 书库路径
+
+在轻小说或漫画卡片点击「同步 Komga 路径」，选书库后点击「同步路径并刷新」。Studio 会选择该 Komga 书库与当前类型可写挂载的共同目录。例如 Komga 书库根是 `/NAS/漫画`，Studio 挂载的是 `/NAS/漫画/Suwayomi`，则使用后者。两边的 NAS 路径名称需一致；范围外的书库只可请求刷新。此操作更新 Studio 的保存位置，Komga 库根和已有文件保持原位。
+
+「仅刷新书库」只提交扫描。Komga 需要管理员权限，接受后在后台扫描。页面分别显示保存和扫描结果，可在扫描完成后从「我的书库 → Komga」查看。接口为 `GET /api/settings/download-folders/komga?kind=manga` 和 `POST /api/settings/download-folders/komga`，POST 传 `kind`、`libraryId` 和 `action`（`sync` 或 `scan`）。两者都需要 Studio 管理员会话。
 
 ## Komga API 和 DSH 只读密钥
 

@@ -1,10 +1,10 @@
-# Novel & Manga Studio
+# 轻小说与漫画书库 · Novel & Manga Library
 
 **在一个 Web 管理台里搜索、下载和管理轻小说与漫画。** 轻小说由原有 Dart 引擎生成 EPUB，漫画由 Suwayomi 下载。可以把漫画按卷归档成 CBZ，存入 Komga 的书库目录，也可以让 DeepSeek Harness（DSH）调用原生工具管理下载和查询进度。
 
 适合部署在飞牛 NAS 或其他 Linux x86-64 Docker 主机。使用 Web 管理台无需安装 DSH 或配置大模型。
 
-![Novel & Manga Studio 桌面书库，包含轻小说与漫画演示数据](docs/images/studio-library.jpg)
+![Novel & Manga Library 桌面书库，包含轻小说与漫画演示数据](docs/images/studio-library.jpg)
 
 [部署到 NAS](docs/DEPLOY-NAS.md#4-web-管理台bff--live-前端) · [WebUI 使用指南](web/README.md) · [连接 Suwayomi](docs/MANGA.md) · [连接 Komga](docs/KOMGA.md) · [安装 DSH 插件](docs/DSH-MANGA.md)
 
@@ -14,7 +14,7 @@
 | --- | --- |
 | **轻小说** | 搜索、查看详情和目录，选卷下载 EPUB。支持合卷、查询任务、取消与重试，以及书库文件校验。 |
 | **漫画** | 搜索 Suwayomi 已安装的来源，查看章节、已读和已下载状态，批量加入下载队列。简繁和别名用于扩展检索词，同名作品保留各自的来源。 |
-| **按卷归档** | 选卷后「一键下载到 Komga」。归档容器读取实际下载进度，齐卷后生成 CBZ。轻小说 EPUB 与漫画 CBZ 可分别设置保存目录。 |
+| **按卷归档** | 选卷后「一键下载到 Komga」。归档容器读取实际下载进度，齐卷后生成 CBZ。轻小说 EPUB 与漫画 CBZ 可分别浏览 NAS 目录，也可使用 Komga 书库路径并发起扫描。 |
 | **统一书库** | 在同一界面浏览 EPUB、Suwayomi 书架和已连接的 Komga 书库。Komga 负责扫描、阅读和阅读记录。 |
 | **账号与 API** | Docker 版首次创建管理员，登录可选择在此设备保留 8 小时、1 天、7 天或 30 天。系统设置可填写 Komga API Key，也可生成或撤销 DSH 只读密钥。 |
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Novel & Manga Studio web console server.
+ * Novel & Manga Library web console server.
  *
  *   node server/serve.mjs
  *
@@ -53,7 +53,7 @@ const MIME = {
 }
 
 const FALLBACK_PAGE = `<!doctype html>
-<html lang="zh-CN"><meta charset="utf-8"><title>Novel &amp; Manga Studio</title>
+<html lang="zh-CN"><meta charset="utf-8"><title>Novel &amp; Manga Library</title>
 <body style="font:14px/1.8 system-ui,sans-serif;max-width:680px;margin:64px auto;color:#33344B">
 <h1>前端产物尚未构建</h1>
 <p>API 服务已就绪，但没有找到 <code>web/dist/index.html</code>。</p>

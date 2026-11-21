@@ -31,7 +31,7 @@ export function KomgaLibraryPage({ providerTabs }: { providerTabs: ReactNode }) 
   }
 
   return (
-    <div>
+    <div className="library-layout">
       <PageHeader
         eyebrow="Komga"
         title="我的书库"
@@ -108,7 +108,7 @@ function KomgaSeriesGrid({ libraryId, query }: { libraryId: string; query: strin
       {data.content.length ? (
         <>
           <p className="mb-3 text-xs text-[#6B6B85]">{data.page.totalElements} 个系列</p>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div className="library-cover-grid grid">
             {data.content.map((series) => <KomgaSeriesCard key={series.id} series={series} />)}
           </div>
         </>

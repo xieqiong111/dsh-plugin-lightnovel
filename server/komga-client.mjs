@@ -249,7 +249,7 @@ export function createKomgaClient(config = readKomgaConfig(), options = {}) {
     }
   }
 
-  async function libraries() {
+  async function libraries({ includePaths = false } = {}) {
     const payload = await requestJson('/api/v1/libraries')
     if (!Array.isArray(payload)) throw new KomgaError('INVALID_RESPONSE', 'Komga returned an invalid library list', 502)
     return {
@@ -257,7 +257,11 @@ export function createKomgaClient(config = readKomgaConfig(), options = {}) {
         if (!item || typeof item.name !== 'string') {
           throw new KomgaError('INVALID_RESPONSE', 'Komga returned incomplete library data', 502)
         }
-        return { id: requiredResponseId(item.id, 'library ID'), name: item.name }
+        return {
+          id: requiredResponseId(item.id, 'library ID'),
+          name: item.name,
+          ...(includePaths ? { root: typeof item.root === 'string' ? item.root : null } : {}),
+        }
       }),
     }
   }
@@ -296,6 +300,15 @@ export function createKomgaClient(config = readKomgaConfig(), options = {}) {
     return { contentType, body: bytes }
   }
 
+  async function scanLibrary(libraryId) {
+    const id = safeId(libraryId, 'libraryId')
+    const { response } = await request(`/api/v1/libraries/${encodeURIComponent(id)}/scan`, {
+      method: 'POST',
+      maxBytes: 16 * 1024,
+    })
+    if (response.status !== 202) throw new KomgaError('INVALID_RESPONSE', 'Komga did not accept the library scan', 502)
+  }
+
   async function status() {
     if (configError) throw configError
     if (!baseUrl) return { configured: false, connected: false }
@@ -303,5 +316,5 @@ export function createKomgaClient(config = readKomgaConfig(), options = {}) {
     return { configured: true, connected: true, libraryCount: result.libraries.length }
   }
 
-  return { configured, libraries, series, thumbnail, status }
+  return { configured, libraries, series, thumbnail, status, scanLibrary }
 }

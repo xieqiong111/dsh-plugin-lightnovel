@@ -111,11 +111,11 @@ export function createApi(
   mangaClient = runtime.suwayomi ?? createSuwayomiClient(),
   komgaClient = runtime.komga ?? createKomgaClient(),
 ) {
-  const handleDownloadFolders = createDownloadFoldersApi(settings)
   const handleMangaApi = createMangaApi(mangaClient, logger, {
     missingBffAuth: settings.mangaCredentialsConfigured && !settings.token && !settings.auth,
   })
   const currentKomga = () => settings.integrations?.client ?? komgaClient
+  const handleDownloadFolders = createDownloadFoldersApi(settings, currentKomga)
   const handleKomgaApi = createKomgaApi({
     status: () => currentKomga().status(),
     libraries: () => currentKomga().libraries(),

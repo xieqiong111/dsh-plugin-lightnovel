@@ -175,7 +175,7 @@ function StudioLibraryPage({ providerTabs }: { providerTabs: ReactNode }) {
   }
 
   return (
-    <div>
+    <div className="library-layout">
       <PageHeader
         eyebrow="Local library"
         title="我的书库"
@@ -217,18 +217,17 @@ function StudioLibraryPage({ providerTabs }: { providerTabs: ReactNode }) {
         }
       />
 
-      {providerTabs}
-      <MediaFilterTabs />
+      <div className="flex flex-wrap items-center gap-x-3">{providerTabs}<MediaFilterTabs /></div>
 
-      {type !== 'manga' && <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {type !== 'manga' && <div className="library-stats mb-5 grid gap-3">
         <MiniStat icon={<BookOpen className="h-4 w-4" />} value={stats?.epubs ?? items.length} label="EPUB 文件" />
         <MiniStat icon={<FolderOpen className="h-4 w-4" />} value={items.length} label={IS_LIVE ? '当前列表' : '样例文件'} />
         <MiniStat icon={<ShieldCheck className="h-4 w-4" />} value={stats?.verified ?? items.filter((item) => item.integrity === 'passed').length} label="通过校验" />
         <MiniStat icon={<FileText className="h-4 w-4" />} value={stats?.bytes !== undefined ? formatBytes(stats.bytes) : '—'} label="占用空间" />
       </div>}
 
-      <Card className="mb-5 flex flex-col gap-3 p-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex h-10 flex-1 items-center gap-2.5 rounded-full border border-[#EFEDF6] bg-[#FBFAFE] px-4 lg:max-w-[380px]">
+      <Card className="library-toolbar mb-5 flex flex-wrap items-center gap-3 p-3 sm:p-4">
+        <div className="library-search flex h-10 min-w-0 flex-1 items-center gap-2.5 rounded-full border border-[#EFEDF6] bg-[#FBFAFE] px-3 sm:px-4">
           <Search className="h-4 w-4 shrink-0 text-[#A6A6B8]" />
           <input
             value={keyword}
@@ -239,8 +238,8 @@ function StudioLibraryPage({ providerTabs }: { providerTabs: ReactNode }) {
           />
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {type !== 'manga' && <div role="group" aria-label="EPUB 完整性" className="inline-flex rounded-full border border-[#EDEAF6] bg-white p-1">
+        <div className="library-filters flex min-w-0 flex-wrap items-center gap-2">
+          {type !== 'manga' && <div role="group" aria-label="EPUB 完整性" className="inline-flex max-w-full flex-wrap rounded-full border border-[#EDEAF6] bg-white p-1">
             {(
               [
                 ['all', '全部校验状态'],
@@ -252,9 +251,10 @@ function StudioLibraryPage({ providerTabs }: { providerTabs: ReactNode }) {
               <button
                 key={id}
                 type="button"
+                aria-pressed={filter === id}
                 onClick={() => setFilter(id)}
                 className={cn(
-                  'h-7 rounded-full px-3 text-[10.5px] transition',
+                  'h-8 whitespace-nowrap rounded-full px-2.5 text-[11px] transition sm:px-3',
                   filter === id ? 'bg-[#F1EDFE] font-semibold text-[#6C4AD9]' : 'text-[#8B8BA0] hover:text-[#6C4AD9]',
                 )}
               >
@@ -302,36 +302,36 @@ function StudioLibraryPage({ providerTabs }: { providerTabs: ReactNode }) {
           />
         </Card>
       )) : view === 'grid' ? (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="library-cover-grid grid">
           {visible.map((entry) => {
             if (entry.type === 'manga') return <MangaCard key={entry.id} manga={entry.item} library />
             const item = entry.item
             return (
-            <Card key={entry.id} data-media-type="novel" data-resource-id={item.id} hoverable className="overflow-hidden p-[6px]">
+            <Card key={entry.id} data-media-type="novel" data-resource-id={item.id} hoverable className="flex min-w-0 flex-col overflow-hidden p-[6px]">
               <CoverArt
                 theme={item.cover}
                 index={item.coverIndex}
                 title={item.title}
                 className="aspect-[3/4] w-full rounded-[11px]"
               />
-              <div className="px-2 pb-2 pt-3">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="truncate text-[12.5px] font-bold text-[#2B2C44]">{item.title}</p>
-                  <Badge tone={integrityMeta[item.integrity].tone}>{integrityMeta[item.integrity].label}</Badge>
+              <div className="flex flex-1 flex-col px-2 pb-2 pt-3">
+                <div className="flex min-w-0 flex-wrap items-start gap-x-2 gap-y-1">
+                  <h3 title={item.title} className="min-w-0 flex-[1_1_7rem] break-words text-[13px] font-bold leading-snug text-[#2B2C44]">{item.title}</h3>
+                  <Badge className="shrink-0 whitespace-nowrap" tone={integrityMeta[item.integrity].tone}>{integrityMeta[item.integrity].label}</Badge>
                 </div>
                 <p className="mt-1 truncate text-[9.5px] text-[#A2A2B6]">{item.fileName}</p>
                 <p className="mt-2 break-words text-[10px] text-[#6B6B85]">轻小说 · {entry.format} · {item.novelId.split(':')[0]}</p>
                 <p className="mt-1 break-words text-[10px] text-[#6B6B85]">已下载 · 入库 {item.addedAt} · ID {item.id}</p>
                 <p className="mt-1 text-[10px] text-[#8F8FA4]">{item.volumeLabel} · {item.size}</p>
-                <div className="mt-3 flex items-center gap-1.5">
-                  <Button variant="soft" size="sm" className="h-7 flex-1 px-2 text-[10px]" onClick={() => setDetail(item)}>
+                <div className="mt-auto flex flex-wrap items-center gap-1 pt-3">
+                  <Button variant="soft" size="sm" className="h-8 flex-[1_0_3rem] px-2 text-[11px]" onClick={() => setDetail(item)}>
                     详情
                   </Button>
                   <button
                     type="button"
                     aria-label="校验文件"
                     onClick={() => verify(item)}
-                    className="flex h-7 w-7 items-center justify-center rounded-full text-[#8B8BA0] transition hover:bg-[#F1EDFE] hover:text-[#6C4AD9]"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#8B8BA0] transition hover:bg-[#F1EDFE] hover:text-[#6C4AD9]"
                   >
                     <ShieldCheck className="h-3 w-3" />
                   </button>
@@ -339,7 +339,7 @@ function StudioLibraryPage({ providerTabs }: { providerTabs: ReactNode }) {
                     type="button"
                     aria-label="删除文件"
                     onClick={() => setDeleteTarget(item)}
-                    className="flex h-7 w-7 items-center justify-center rounded-full text-[#B5B5C6] transition hover:bg-[#FFF1F5] hover:text-[#C2377B]"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#B5B5C6] transition hover:bg-[#FFF1F5] hover:text-[#C2377B]"
                   >
                     <Trash2 className="h-3 w-3" />
                   </button>
@@ -552,13 +552,13 @@ function MiniStat({
   label: string
 }) {
   return (
-    <Card className="flex items-center gap-3 p-4">
-      <IconTile className="h-9 w-9 bg-[#F6F3FF]">{icon}</IconTile>
+    <Card className="flex min-w-0 items-center gap-2 p-3 sm:gap-3 sm:p-4">
+      <IconTile className="h-9 w-9 shrink-0 bg-[#F6F3FF]">{icon}</IconTile>
       <div className="min-w-0">
         <p className="text-[16px] font-bold leading-none text-[#25263C]">
           {value}
         </p>
-        <p className="mt-1.5 truncate text-[9.5px] text-[#A2A2B6]">{label}</p>
+        <p className="mt-1 break-words text-[10.5px] text-[#A2A2B6]">{label}</p>
       </div>
     </Card>
   )

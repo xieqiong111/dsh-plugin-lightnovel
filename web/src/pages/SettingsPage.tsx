@@ -194,7 +194,7 @@ export function SettingsPage() {
             <SectionTitle title="运行信息" className="[&_h2]:text-[17px]" />
             <div className="mt-3.5 space-y-2.5 text-[10px]">
               {[
-                ['前端版本', 'Novel & Manga Studio 1.0.0'],
+                ['前端版本', 'Novel & Manga Library 1.0.0'],
                 ['插件版本', 'dsh-plugin-lightnovel 1.0.0'],
                 ['运行模式', IS_LIVE ? 'Live · PluginRuntime / BFF' : 'Mock · 前端原型'],
                 ['数据接口', IS_LIVE ? `${API_BASE}/*` : '未接入'],

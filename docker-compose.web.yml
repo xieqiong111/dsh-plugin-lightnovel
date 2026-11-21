@@ -1,4 +1,4 @@
-# Novel & Manga Studio web console — generic Docker Compose (Linux hosts).
+# Novel & Manga Library web console — generic Docker Compose (Linux hosts).
 #
 # This service is the BFF + static host in one process:
 #   node server/serve.mjs   ->   /api/*  +  web/dist

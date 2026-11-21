@@ -120,7 +120,7 @@ function LoginGate({ children }: { children: ReactNode }) {
       <Card className="w-full max-w-[440px] p-6 sm:p-8">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#7555DD] text-white"><BookOpen className="h-5 w-5" /></div>
-          <span className="text-sm font-semibold text-[#373452]">轻小说与漫画管理中心</span>
+          <span className="text-sm font-semibold text-[#373452]">轻小说与漫画书库</span>
         </div>
         <h1 className="mt-5 text-2xl font-bold text-[#22233B]">{creating ? '创建管理员账号' : '登录 Studio'}</h1>
         {creating && <Badge className="mt-2">首次设置</Badge>}
