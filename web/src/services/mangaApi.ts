@@ -36,6 +36,8 @@ export interface KomgaVolume {
   total: number
   downloaded: number
   filename: string | null
+  state: 'idle' | 'archived' | 'waiting_archive' | 'failed' | 'downloading' | 'queued'
+  tasks: MangaTask[]
 }
 
 export const mangaKomgaApi = {

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import type { ResolvedConfig } from './config.js'
 import { DartBridge } from './core/bridge.js'
@@ -11,7 +12,8 @@ import { SourceRegistry } from './sources/registry.js'
 import type { SourceContext } from './sources/types.js'
 import { PoliteFetcher } from './util/http.js'
 import type { Logger } from './util/logger.js'
-import { createSuwayomiClient } from '../server/suwayomi-client.mjs'
+import { createMangaKomga, type MangaKomga } from '../server/manga-komga.mjs'
+import { createSuwayomiClient, readSuwayomiConfig } from '../server/suwayomi-client.mjs'
 import type { SuwayomiClient } from '../server/suwayomi-client.mjs'
 
 /**
@@ -32,6 +34,7 @@ export class PluginRuntime {
   readonly search: SearchEngine
   readonly novels: NovelService
   readonly suwayomi: SuwayomiClient
+  readonly mangaKomga: MangaKomga
 
   private initPromise: Promise<void> | null = null
   private dartStatus: { available: boolean; runner: string | null; reason?: string } = {
@@ -50,7 +53,20 @@ export class PluginRuntime {
       logger,
     })
     this.registry = new SourceRegistry(config, logger)
-    this.suwayomi = createSuwayomiClient()
+    let mangaEnv = process.env
+    if (config.mangaConnectionFile) {
+      try {
+        const fields: unknown = JSON.parse(readFileSync(config.mangaConnectionFile, 'utf8'))
+        if (!fields || typeof fields !== 'object' || Array.isArray(fields)) throw new Error('Invalid config object')
+        const strings = Object.entries(fields).filter(([name, value]) =>
+          (name.startsWith('LN_SUWAYOMI_') || name === 'LN_VOLUME_ARCHIVE_URL') && typeof value === 'string')
+        mangaEnv = { ...Object.fromEntries(strings), ...process.env }
+      } catch {
+        logger.warn('manga', 'connection_file_unreadable')
+      }
+    }
+    this.suwayomi = createSuwayomiClient(readSuwayomiConfig(mangaEnv))
+    this.mangaKomga = createMangaKomga(this.suwayomi, undefined, mangaEnv.LN_VOLUME_ARCHIVE_URL)
     this.index = new LocalIndex(config.indexPath, logger)
     this.bridge = new DartBridge(config, logger)
     this.store = new TaskStore(config.tasksDir, logger)

@@ -13,6 +13,14 @@
 
 BFF 接口为 `GET /api/manga/:id/komga`（每卷的总条目数、已下载数和已写入文件名）和 `POST /api/manga/:id/komga`（请求体 `{"volume":2}`，返回 Suwayomi 确认的队列结果）。卷号以归档服务读取到的来源目录为准。
 
+## DSH 和 Docker 进度
+
+将 DSH 接入同一 Docker 网络，并设置与 Studio 相同的 `LN_VOLUME_ARCHIVE_URL`。也可在 DSH 插件配置中用 `mangaConnectionFile` 指向私有 JSON 文件，并在其中加入 `LN_VOLUME_ARCHIVE_URL`。DSH 原生工具 `manga_komga_status(mangaId, volume?)` 查询指定漫画的分卷、真实章节队列进度和已写入文件名。选定卷后调用 `manga_komga_download(mangaId, volume)` 提交任务。
+
+Studio BFF 的 `GET /api/manga/:id/komga?volume=2` 可限定卷号。每卷的 `tasks` 返回 Suwayomi 队列中的章节状态和 `percent`。百分比对应正在下载的那一话。拿不到百分比时返回 `null`。全部条目下载齐后显示 `waiting_archive`，实际 CBZ 写入后显示 `archived`。
+
+归档容器还提供内部只读 `GET http://suwayomi-volume-cbz:8788/downloads`，返回 Suwayomi 的当前队列。容器每 15 秒查看一次队列，只在状态或百分比变化时记录日志。运行 `docker compose -f docker/volume-cbz/compose.yml logs -f volume-cbz` 可以查看下载进度和 CBZ 生成记录。
+
 ## Docker 部署
 
 用现有 Suwayomi 实例的 Docker 网络。创建专用输出目录，例如 Komga 已扫描的漫画库目录下的 `Suwayomi`，让归档容器运行用户可写且让 Komga 可读。NAS 上可以让这两个容器使用同一 UID/GID。Docker 归档容器仅挂载此子目录，认证 JSON 以只读方式挂载。认证文件需要运行用户能读取，建议权限 `0600`，无需提交到仓库。可以复用 DSH 的连接 JSON，文件字段为 `LN_SUWAYOMI_URL`，若 Suwayomi 启用了 Basic 认证，再填写 `LN_SUWAYOMI_USERNAME` 和 `LN_SUWAYOMI_PASSWORD`。URL 应为容器可访问的 HTTP(S) origin，例如 `http://suwayomi:4567`。

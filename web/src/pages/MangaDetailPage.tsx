@@ -231,7 +231,15 @@ function KomgaDownload({ id, revision }: { id: string; revision: number }) {
   const [error, setError] = useState('')
   const volumes = catalog.data?.volumes ?? []
   const volume = volumes.find((entry) => String(entry.number) === choice) ?? volumes[0]
-  const waitingForArchive = volume && volume.downloaded === volume.total && !volume.filename
+  const waitingForArchive = volume?.state === 'waiting_archive'
+  const downloading = volume?.state === 'downloading' || volume?.state === 'queued'
+  const activeChapter = volume?.tasks.find((task) => task.state === 'running')
+  const isActive = downloading || waitingForArchive
+  useEffect(() => {
+    if (!isActive) return
+    const timer = window.setInterval(() => setRefreshes((current) => current + 1), 10000)
+    return () => window.clearInterval(timer)
+  }, [isActive])
 
   const download = async () => {
     if (!volume) return
@@ -276,12 +284,16 @@ function KomgaDownload({ id, revision }: { id: string; revision: number }) {
                 {volumes.map((entry) => <option key={entry.number} value={entry.number}>第 {entry.number} 卷</option>)}
               </select>
               <Button size="sm" variant="primary" loading={busy}
-                disabled={busy || catalog.loading || Boolean(volume.filename) || Boolean(waitingForArchive) || volume.total > 100}
+                disabled={busy || catalog.loading || Boolean(volume.filename) || isActive || volume.total > 100}
                 icon={<Download className="h-3.5 w-3.5" />} onClick={() => void download()}>一键下载到 Komga</Button>
             </div>
             <p role="status" className="mt-2 text-xs text-[#6B6B85]">
               {volume.filename ? `已写入 Komga 目录 · ${volume.filename}`
                 : waitingForArchive ? '本卷已下载，正在等待生成 CBZ。'
+                : volume.state === 'failed' ? 'Suwayomi 报告下载失败，请查看漫画下载队列。'
+                : downloading ? `已下载 ${volume.downloaded} / ${volume.total} 条 · ${activeChapter
+                  ? `${activeChapter.chapterName}下载中${activeChapter.percent === null ? '' : ` ${activeChapter.percent}%`}`
+                  : 'Suwayomi 已排队'}`
                 : volume.total > 100 ? '该卷超过 100 话，请分批下载章节，下载齐后会自动归档。'
                 : `已下载 ${volume.downloaded} / ${volume.total} 条，下载齐后自动生成一个 CBZ。`}
             </p>

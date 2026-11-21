@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { PluginRuntime } from '../runtime.js'
+import type { MangaKomga } from '../../server/manga-komga.mjs'
 import type { SuwayomiClient } from '../../server/suwayomi-client.mjs'
 import { canonical, jsonOutput, ok } from './common.js'
 
@@ -54,7 +55,43 @@ function requiredId(value: string | undefined): string | null {
 }
 
 /** Register the independent manga tool family against the shared Suwayomi client. */
-export function registerMangaTools(ctx: Context, runtime: PluginRuntime): void {
+export function registerMangaTools(ctx: Context, runtime: PluginRuntime, komga: MangaKomga = runtime.mangaKomga): void {
+  ctx.tools.register(defineTool({
+    name: 'manga_komga_status',
+    description: 'Read recognisable manga volumes, actual Suwayomi chapter download progress, and the exported CBZ filename in the Komga directory. Pass a volume number for a single volume.',
+    parameters: {
+      mangaId: { type: 'string', required: true, description: 'Suwayomi manga id from manga_search.' },
+      volume: { type: 'number', description: 'Optional volume number.' },
+    },
+    output: jsonOutput(),
+    async execute(args) {
+      return runMangaTool(runtime, 'manga_komga_status', async () => ok(await komga.status(args.mangaId.trim(), args.volume)))
+    },
+  }))
+
+  ctx.tools.register(defineTool({
+    name: 'manga_komga_download',
+    description: 'Queue one explicitly selected manga volume for automatic CBZ export into the Komga library directory. Use manga_komga_status to find volume numbers and track the result.',
+    parameters: {
+      mangaId: { type: 'string', required: true, description: 'Suwayomi manga id from manga_search.' },
+      volume: { type: 'number', required: true, description: 'Volume number returned by manga_komga_status.' },
+    },
+    output: jsonOutput(),
+    async execute(args) {
+      return runMangaTool(runtime, 'manga_komga_download', async () => {
+        const result = await komga.download(args.mangaId.trim(), args.volume)
+        if (result.unconfirmed?.length) {
+          return { ...result, ok: false, error: {
+            code: 'MANGA_DOWNLOAD_UNCONFIRMED',
+            message: 'Check manga_komga_status for the unconfirmed chapters.',
+            retryable: false,
+          } }
+        }
+        return ok(result)
+      })
+    },
+  }))
+
   ctx.tools.register(defineTool({
     name: 'manga_search',
     description: [

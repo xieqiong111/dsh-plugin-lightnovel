@@ -6,6 +6,7 @@ import ToolRuntime from '@deepseek-ai/dsh-tools'
 import * as NativeToolExecutor from '@deepseek-ai/dsh-tool-executor-native'
 import type { PluginRuntime } from '../../src/runtime.js'
 import { registerMangaTools } from '../../src/tools/manga.js'
+import type { MangaKomga } from '../../server/manga-komga.mjs'
 
 const manga = {
   sources: vi.fn(async () => ({ sources: [{ id: 'source-1', name: 'Example', lang: 'en' }], totalCount: 1, hasNextPage: false })),
@@ -23,6 +24,11 @@ const runtime = {
   suwayomi: manga,
   logger: { warn: vi.fn() },
 } as unknown as PluginRuntime
+
+const komga = {
+  status: vi.fn(async () => ({ available: true, volumes: [{ number: 2, state: 'downloading', tasks: [{ percent: 61 }] }] })),
+  download: vi.fn(async () => ({ queued: ['41'], skipped: [], completed: [], filename: null })),
+}
 
 let ctx: Context
 let sequence = 0
@@ -48,7 +54,7 @@ beforeAll(async () => {
   await ctx.plugin(SystemPrompt)
   await ctx.plugin(ToolRuntime)
   await ctx.plugin(NativeToolExecutor)
-  registerMangaTools(ctx, runtime)
+  registerMangaTools(ctx, runtime, komga as unknown as MangaKomga)
 })
 
 afterAll(async () => { await ctx?.dispose?.() })
@@ -58,6 +64,7 @@ describe('native manga tools', () => {
     const names = [
       'manga_search', 'manga_details', 'manga_chapters', 'manga_download',
       'manga_tasks', 'manga_library', 'manga_sources', 'manga_subscribe',
+      'manga_komga_status', 'manga_komga_download',
     ]
     const schemas = ctx.tools.schemas()
     for (const name of names) {
@@ -94,6 +101,17 @@ describe('native manga tools', () => {
 
     expect((await call('manga_subscribe', { mangaId: 'manga-1', inLibrary: true })).ok).toBe(true)
     expect(manga.setLibrary).toHaveBeenCalledWith({ mangaId: 'manga-1', inLibrary: true })
+  })
+
+  it('dispatches Komga volume status and download through native DSH tools', async () => {
+    expect(await call('manga_komga_status', { mangaId: '22', volume: 2 })).toMatchObject({
+      ok: true, volumes: [{ number: 2, state: 'downloading', tasks: [{ percent: 61 }] }],
+    })
+    expect(komga.status).toHaveBeenCalledWith('22', 2)
+    expect(await call('manga_komga_download', { mangaId: '22', volume: 2 })).toMatchObject({
+      ok: true, queued: ['41'], filename: null,
+    })
+    expect(komga.download).toHaveBeenCalledWith('22', 2)
   })
 
   it('reports an unconfirmed enqueue as unresolved without requesting an automatic retry', async () => {

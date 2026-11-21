@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { DartBridge } from './core/bridge.js';
 import { Library } from './core/library.js';
@@ -8,7 +9,8 @@ import { SearchEngine } from './search.js';
 import { LocalIndex } from './sources/local-index.js';
 import { SourceRegistry } from './sources/registry.js';
 import { PoliteFetcher } from './util/http.js';
-import { createSuwayomiClient } from '../server/suwayomi-client.mjs';
+import { createMangaKomga } from '../server/manga-komga.mjs';
+import { createSuwayomiClient, readSuwayomiConfig } from '../server/suwayomi-client.mjs';
 /**
  * Owns every long-lived object of one plugin instance.
  *
@@ -28,6 +30,7 @@ export class PluginRuntime {
     search;
     novels;
     suwayomi;
+    mangaKomga;
     initPromise = null;
     dartStatus = {
         available: false,
@@ -45,7 +48,21 @@ export class PluginRuntime {
             logger,
         });
         this.registry = new SourceRegistry(config, logger);
-        this.suwayomi = createSuwayomiClient();
+        let mangaEnv = process.env;
+        if (config.mangaConnectionFile) {
+            try {
+                const fields = JSON.parse(readFileSync(config.mangaConnectionFile, 'utf8'));
+                if (!fields || typeof fields !== 'object' || Array.isArray(fields))
+                    throw new Error('Invalid config object');
+                const strings = Object.entries(fields).filter(([name, value]) => (name.startsWith('LN_SUWAYOMI_') || name === 'LN_VOLUME_ARCHIVE_URL') && typeof value === 'string');
+                mangaEnv = { ...Object.fromEntries(strings), ...process.env };
+            }
+            catch {
+                logger.warn('manga', 'connection_file_unreadable');
+            }
+        }
+        this.suwayomi = createSuwayomiClient(readSuwayomiConfig(mangaEnv));
+        this.mangaKomga = createMangaKomga(this.suwayomi, undefined, mangaEnv.LN_VOLUME_ARCHIVE_URL);
         this.index = new LocalIndex(config.indexPath, logger);
         this.bridge = new DartBridge(config, logger);
         this.store = new TaskStore(config.tasksDir, logger);

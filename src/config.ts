@@ -45,6 +45,8 @@ export interface Config {
   logLevel: LogLevelName
   /** Extra traditional->simplified pairs, e.g. "臺台,裡里". */
   extraTraditionalMap: string
+  /** Private JSON file with Suwayomi and Komga archive connection variables. */
+  mangaConnectionFile?: string
 }
 
 /** Runtime schema. Exported as `Config` because the Cordis loader looks it up. */
@@ -68,6 +70,7 @@ export const Config: Schema<Config> = Schema.object({
   maxVolumesPerTask: Schema.number().default(50),
   logLevel: Schema.union(['debug', 'info', 'warn', 'error']).default('info'),
   extraTraditionalMap: Schema.string().default(''),
+  mangaConnectionFile: Schema.string().default(''),
 })
 
 export interface ResolvedConfig extends Config {

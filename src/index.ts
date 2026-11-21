@@ -72,6 +72,7 @@ export function apply(ctx: Context, config: Config): void {
     tools: [
       'novel_search', 'novel_details', 'novel_volumes', 'novel_download', 'novel_tasks', 'novel_library',
       'manga_search', 'manga_details', 'manga_chapters', 'manga_download', 'manga_tasks', 'manga_library', 'manga_sources', 'manga_subscribe',
+      'manga_komga_status', 'manga_komga_download',
     ],
     sources: resolved.enabledSources,
     searchMode: resolved.searchMode,

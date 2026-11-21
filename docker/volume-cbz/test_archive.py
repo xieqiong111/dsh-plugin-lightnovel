@@ -6,7 +6,7 @@ from unittest.mock import patch
 from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
 
-from archive import ArchiveError, archive_volume, complete_volumes, volume_catalog, volume_label
+from archive import ArchiveError, Suwayomi, archive_volume, complete_volumes, volume_catalog, volume_label
 
 
 def chapter(chapter_id, name, downloaded=True, page_count=3):
@@ -83,6 +83,16 @@ class VolumeArchiveTests(unittest.TestCase):
                 {"number": 1, "chapterIds": ["10"], "downloaded": 1, "filename": "第01卷.cbz"},
                 {"number": 2, "chapterIds": ["11", "12"], "downloaded": 0, "filename": None},
             ])
+
+    def test_download_status_uses_upstream_numbers_and_keeps_unknown_progress(self):
+        client = Suwayomi({"SUWAYOMI_URL": "http://suwayomi:4567"})
+        with patch.object(client, "graphql", return_value={"downloadStatus": {"state": "STARTED", "queue": [
+            {"state": "DOWNLOADING", "progress": 0.38, "chapter": {"id": 31, "mangaId": 22, "name": "第2卷"}},
+            {"state": "QUEUED", "progress": None, "chapter": {"id": 32, "mangaId": 22, "name": "第3卷"}},
+        ]}}):
+            result = client.download_status()
+        self.assertEqual(result["queue"][0]["percent"], 38)
+        self.assertIsNone(result["queue"][1]["percent"])
 
     def test_failed_refresh_preserves_existing_archive(self):
         with tempfile.TemporaryDirectory() as directory:

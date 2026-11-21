@@ -11,6 +11,7 @@ import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from itertools import islice
 import logging
+import math
 import os
 from pathlib import Path, PurePosixPath
 import re
@@ -117,6 +118,24 @@ class Suwayomi:
             if not nodes:
                 raise ArchiveError("Suwayomi returned empty intermediate chapter page")
             offset += len(nodes)
+
+    def download_status(self):
+        data = self.graphql("""query ArchiveDownloadProgress {
+          downloadStatus { state queue { state progress chapter { id mangaId name } } }
+        }""").get("downloadStatus")
+        if not isinstance(data, dict) or not isinstance(data.get("queue"), list):
+            raise ArchiveError("Suwayomi returned an incomplete download queue")
+        queue = []
+        for task in data["queue"]:
+            chapter = task["chapter"]
+            progress = task["progress"]
+            if progress is not None and (not isinstance(progress, (int, float)) or not 0 <= progress <= 1):
+                raise ArchiveError("Suwayomi returned invalid download progress")
+            queue.append({
+                "mangaId": str(chapter["mangaId"]), "chapterId": str(chapter["id"]), "chapterName": chapter["name"],
+                "state": task["state"], "percent": None if progress is None else math.floor(progress * 100 + 0.5),
+            })
+        return {"state": data["state"], "queue": queue}
 
     def downloaded_mangas(self):
         return {row["manga"]["id"]: row["manga"] for row in self.chapters(
@@ -267,10 +286,14 @@ def start_status_server(client, root, port):
         def do_GET(self):
             match = re.fullmatch(r"/manga/([1-9][0-9]{0,9})/volumes", self.path)
             try:
-                if not match or int(match[1]) > 2**31 - 1:
+                if self.path == "/downloads":
+                    result = client.download_status()
+                elif match and int(match[1]) <= 2**31 - 1:
+                    result = volume_catalog(client, root, int(match[1]))
+                else:
                     self.send_error(404)
                     return
-                body = json.dumps(volume_catalog(client, root, int(match[1]))).encode()
+                body = json.dumps(result).encode()
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Content-Length", str(len(body)))
@@ -356,13 +379,39 @@ def run_once(client, root):
     return failures
 
 
+def log_download_progress(client, interval):
+    previous = {}
+    unavailable = False
+    while True:
+        try:
+            queue = client.download_status()["queue"]
+            current = {task["chapterId"]: (task["state"], task["percent"]) for task in queue}
+            for task in queue:
+                if current[task["chapterId"]] != previous.get(task["chapterId"]):
+                    logging.info("download %s", json.dumps(task, ensure_ascii=False))
+            for chapter_id in previous.keys() - current.keys():
+                logging.info("chapter %s left Suwayomi queue; see volume status for CBZ confirmation", chapter_id)
+            if unavailable:
+                logging.info("Suwayomi download queue is reachable again")
+            previous = current
+            unavailable = False
+        except (ArchiveError, OSError, ValueError, TypeError, KeyError) as exc:
+            if not unavailable:
+                logging.warning("cannot read Suwayomi download progress: %s", exc)
+            unavailable = True
+        time.sleep(interval)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--connection-file", type=Path, help="Suwayomi connection JSON (optional)")
     parser.add_argument("--interval", type=int, default=0, help="seconds between polls; zero runs once")
     parser.add_argument("--status-port", type=int, help="internal HTTP status port")
+    parser.add_argument("--progress-interval", type=int, default=0, help="seconds between download progress checks")
     args = parser.parse_args()
+    if args.progress_interval and (not args.interval or args.progress_interval < 5):
+        parser.error("--progress-interval requires archive polling and a minimum of 5 seconds")
     if args.status_port is not None and (not args.interval or not 1024 <= args.status_port <= 65535):
         parser.error("--status-port requires polling and a port from 1024 to 65535")
     if args.interval and args.interval < 30:
@@ -378,6 +427,8 @@ def main():
                 stale.unlink()
             if args.status_port:
                 start_status_server(client, args.output, args.status_port)
+            if args.progress_interval:
+                Thread(target=log_download_progress, args=(client, args.progress_interval), daemon=True).start()
             logging.info("Suwayomi volume exporter started (interval: %ds)", args.interval)
             while True:
                 try:

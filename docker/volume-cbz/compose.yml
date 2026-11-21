@@ -6,7 +6,7 @@ services:
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
-    command: [python, -B, /app/archive.py, --output, /library, --connection-file, /run/suwayomi.json, --interval, "60", --status-port, "8788"]
+    command: [python, -B, /app/archive.py, --output, /library, --connection-file, /run/suwayomi.json, --interval, "60", --status-port, "8788", --progress-interval, "15"]
     environment:
       TMPDIR: /library
     volumes:

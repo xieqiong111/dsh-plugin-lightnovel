@@ -124,7 +124,11 @@ describe('Suwayomi BFF routes', () => {
       { number: 1, chapterIds: ['29'], downloaded: 1, filename: '第01卷.cbz' },
       { number: 2, chapterIds: ['30', '31'], downloaded: 1, filename: null },
     ])
-    const api = createMangaApi({ download }, undefined, { getVolumes })
+    const tasks = vi.fn(async () => ({ queue: [
+      { mangaId: '22', chapterId: '31', state: 'running', percent: 38 },
+      { mangaId: '99', chapterId: '50', state: 'running', percent: 75 },
+    ] }))
+    const api = createMangaApi({ download, tasks }, undefined, { getVolumes })
     const path = '/api/manga/22/komga'
     const url = new URL(path, 'http://localhost')
     const invoke = async (method: string, body?: object) => {
@@ -133,8 +137,9 @@ describe('Suwayomi BFF routes', () => {
       return res
     }
     expect((await invoke('GET')).json()).toEqual({ available: true, volumes: [
-      { number: 1, total: 1, downloaded: 1, filename: '第01卷.cbz' },
-      { number: 2, total: 2, downloaded: 1, filename: null },
+      { number: 1, total: 1, downloaded: 1, filename: '第01卷.cbz', state: 'archived', tasks: [] },
+      { number: 2, total: 2, downloaded: 1, filename: null, state: 'downloading',
+        tasks: [{ mangaId: '22', chapterId: '31', state: 'running', percent: 38 }] },
     ] })
     expect((await invoke('POST', { volume: 3 })).status).toBe(409)
     expect((await invoke('POST', { volume: 1 })).json().filename).toBe('第01卷.cbz')
