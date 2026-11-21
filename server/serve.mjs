@@ -30,6 +30,7 @@ import path from 'node:path'
 import { createApi } from './api.mjs'
 import { createSuwayomiClient } from './suwayomi-client.mjs'
 import { createKomgaClient } from './komga-client.mjs'
+import { loadIntegrations } from './integrations.mjs'
 import { boot, readSettings } from './runtime.mjs'
 
 const MIME = {
@@ -128,6 +129,7 @@ if (settings.accountAuth) {
   const { openStudioAuth } = await import('./auth.mjs')
   settings.auth = openStudioAuth(settings)
 }
+settings.integrations = await loadIntegrations(settings)
 const handleApi = createApi(runtime, settings, logger, mangaClient, komgaClient)
 
 const server = http.createServer((req, res) => {

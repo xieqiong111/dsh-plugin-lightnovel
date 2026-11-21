@@ -25,7 +25,7 @@ function safeTimeout(value) {
   return Math.max(1000, Math.min(MAX_TIMEOUT_MS, Math.trunc(parsed)))
 }
 
-function parseBaseUrl(value) {
+export function normalizeKomgaUrl(value) {
   if (typeof value !== 'string' || !value.trim()) return null
   const raw = value.trim()
   if (!/^https?:\/\//i.test(raw) || /[\\\x00-\x20\x7f]/.test(raw)) {
@@ -186,7 +186,7 @@ export function createKomgaClient(config = readKomgaConfig(), options = {}) {
     if (apiKey && (username || password)) {
       throw new KomgaError('INVALID_CONFIGURATION', 'Configure either LN_KOMGA_API_KEY or the Komga username/password pair', 503)
     }
-    baseUrl = parseBaseUrl(config.url)
+    baseUrl = normalizeKomgaUrl(config.url)
   } catch (error) {
     configError = error instanceof KomgaError ? error : new KomgaError('INVALID_CONFIGURATION', 'Komga configuration is invalid', 503)
   }

@@ -1,3 +1,4 @@
+import { IntegrationSettings } from '@/components/layout/IntegrationSettings'
 import { DownloadFolders } from '@/components/layout/DownloadFolders'
 import { MangaHealthPanel } from '@/components/manga/MangaHealthPanel'
 import { useEffect, useState } from 'react'
@@ -76,6 +77,7 @@ export function SettingsPage() {
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-5">
           {IS_LIVE && <DownloadFolders />}
+          {accountAuth && <IntegrationSettings />}
           <Card className="p-5">
             <div className="flex items-center justify-between">
               <SectionTitle title="连接与接口" className="[&_h2]:text-[18px]" />

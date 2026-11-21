@@ -1,6 +1,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import type { PluginRuntime } from '../runtime.js'
+import { readStudio } from '../../server/studio-reader.mjs'
 import type { MangaKomga } from '../../server/manga-komga.mjs'
 import type { SuwayomiClient } from '../../server/suwayomi-client.mjs'
 import { canonical, jsonOutput, ok } from './common.js'
@@ -56,6 +57,23 @@ function requiredId(value: string | undefined): string | null {
 
 /** Register the independent manga tool family against the shared Suwayomi client. */
 export function registerMangaTools(ctx: Context, runtime: PluginRuntime, komga: MangaKomga = runtime.mangaKomga): void {
+  ctx.tools.register(defineTool({
+    name: 'studio_read',
+    description: 'Read Studio through its scoped read-only API. Resources: health, novels, novelTasks, manga, mangaTasks, komga, komgaSeries (requires libraryId), mangaVolume (requires mangaId, optional volume).',
+    parameters: {
+      resource: { type: 'string', required: true, description: 'Studio resource name.' },
+      libraryId: { type: 'string', description: 'Komga library ID for komgaSeries.' },
+      mangaId: { type: 'string', description: 'Suwayomi manga ID for mangaVolume.' },
+      volume: { type: 'number', description: 'Optional volume number.' },
+    },
+    output: jsonOutput(),
+    async execute(args) {
+      return runMangaTool(runtime, 'studio_read', async () => ok({ data: await readStudio({
+        ...args, url: process.env.LN_STUDIO_READ_URL, tokenFile: process.env.LN_STUDIO_READ_TOKEN_FILE,
+      }) }))
+    },
+  }))
+
   ctx.tools.register(defineTool({
     name: 'manga_komga_status',
     description: 'Read recognisable manga volumes, actual Suwayomi chapter download progress, and the exported CBZ filename in the Komga directory. Pass a volume number for a single volume.',

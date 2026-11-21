@@ -14,6 +14,7 @@ import { createSuwayomiClient } from './suwayomi-client.mjs'
 import { createDownloadFoldersApi } from './download-folders-api.mjs'
 import { createMangaApi } from './manga-api.mjs'
 import { createKomgaClient } from './komga-client.mjs'
+import { isDshReadRoute } from './integrations.mjs'
 import { createKomgaApi } from './komga-api.mjs'
 import { rank, resolveBook } from '../dist/search.js'
 import { assertSafePublicUrl } from '../dist/util/paths.js'
@@ -114,7 +115,13 @@ export function createApi(
   const handleMangaApi = createMangaApi(mangaClient, logger, {
     missingBffAuth: settings.mangaCredentialsConfigured && !settings.token && !settings.auth,
   })
-  const handleKomgaApi = createKomgaApi(komgaClient, logger, {
+  const currentKomga = () => settings.integrations?.client ?? komgaClient
+  const handleKomgaApi = createKomgaApi({
+    status: () => currentKomga().status(),
+    libraries: () => currentKomga().libraries(),
+    series: (options) => currentKomga().series(options),
+    thumbnail: (id) => currentKomga().thumbnail(id),
+  }, logger, {
     missingBffAuth: settings.komgaCredentialsConfigured && !settings.token && !settings.auth,
   })
   const searchUrlConfigured = Boolean(
@@ -296,12 +303,18 @@ export function createApi(
       sendJson(res, 200, { enabled: false })
       return true
     }
+    const dshAllowed = settings.integrations?.authorizeDsh(req) ?? false
+    if (dshAllowed && !isDshReadRoute(req.method, url.pathname)) {
+      sendError(res, 403, 'READ_ONLY_TOKEN', 'DSH 密钥仅可读取书库、连接和下载状态。')
+      return true
+    }
     const tokenAllowed = (!settings.auth || Boolean(settings.token)) && tokenMatches(req, settings.token)
-    if (!tokenAllowed && !settings.auth?.sessionAllowed(req)) {
+    if (!dshAllowed && !tokenAllowed && !settings.auth?.sessionAllowed(req)) {
       sendError(res, 401, 'UNAUTHORIZED', settings.auth ? '请先登录。' : 'Missing or invalid X-LN-Token')
       return true
     }
 
+    if (settings.integrations && await settings.integrations.handle(req, res, url, { sendJson, sendError, readBody })) return true
     if (await handleDownloadFolders(req, res, url)) return true
     if (await handleMangaApi(req, res, url)) return true
     if (await handleKomgaApi(req, res, url)) return true

@@ -417,3 +417,11 @@ docker compose -f docker-compose.web.yml exec web cat /data/auth/setup-code
 Docker 部署在 `.env` 中指定 `LN_NOVEL_STORAGE_HOST`、`LN_MANGA_STORAGE_HOST`、`LN_DOWNLOAD_SETTINGS_HOST`，并提前创建这三个目录。要使用 Komga，前两个路径应分别位于它对应的书库里。归档容器和 Studio 需共享同一个 `LN_DOWNLOAD_SETTINGS_HOST`，并将 `SUWAYOMI_VOLUME_OUTPUT_DIR` 设置为 Studio 的 `LN_MANGA_STORAGE_HOST`。独立 Compose 请使用绝对路径。Suwayomi 归档服务读取设置后，下一次扫描生效。Dart 独立 DSH 进程的小说保存路径仍由其插件配置控制。
 
 接口为 `GET /api/settings/download-folders`、`GET /api/settings/download-folders/browse?kind=novel&folder=`、`POST /api/settings/download-folders`。提交相对于各自挂载的路径，如 `{"kind":"novel","folder":"收藏","create":true}`。仅支持已挂载根目录下的目录，拒绝符号链接和越界路径。
+
+## Komga API 和 DSH 只读密钥
+
+管理员登录后，打开「系统设置 → 服务集成」。在 Komga 区域填写服务地址和 Komga 生成的 API Key，点击「测试并保存」。Studio 会验证能否读取书库，成功后立即用于 WebUI。地址应列在部署的 `LN_KOMGA_ALLOWED_URLS` 中，或与原有 `LN_KOMGA_URL` 一致。Komga 密钥保存在 Studio 私有数据目录，页面不会回显。
+
+点「生成只读密钥」后立即复制。每个 Studio 实例有一个有效的 DSH 只读密钥，重新生成和撤销会使旧密钥立即失效。用 `Authorization: Bearer <令牌>` 调用 Studio 的健康、书库、任务和漫画归档状态接口。密钥无法提交下载、删除文件或读取管理设置。
+
+DSH 可将令牌保存在仅运行用户可读的文件中，并设置 `LN_STUDIO_READ_URL`（Studio 的 HTTP(S) origin）和 `LN_STUDIO_READ_TOKEN_FILE`（容器内文件路径）。例如调用 `studio_read(resource="mangaTasks")` 查询队列，或 `studio_read(resource="komga")` 查询 Komga 书库。已有漫画下载工具继续使用 Suwayomi Docker API。不要把令牌放进对话、URL 或仓库。

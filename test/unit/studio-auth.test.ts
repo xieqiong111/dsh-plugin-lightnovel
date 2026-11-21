@@ -66,3 +66,49 @@ it('protects initial setup, persists sessions, enforces expiry and revokes logou
     await rm(dataDir, { recursive: true, force: true })
   }
 })
+
+it('scopes the DSH credential and never returns stored secrets', async () => {
+  const { loadIntegrations } = await import('../../server/integrations.mjs')
+  const { hash } = await import('node:crypto')
+  const dataDir = await mkdtemp(path.join(os.tmpdir(), 'studio-integration-'))
+  const auth = openStudioAuth({ config: { dataDir }, setupCode: 'fixture-secret-setup' })
+  try {
+    const settings = { config: { dataDir }, auth, token: '', komgaAllowedUrls: ['http://komga:25600'] }
+    const integrations = await loadIntegrations(settings)
+    const api = createApi({ dartAvailable: true }, { ...settings, integrations }, { warn() {} })
+    async function send(method: string, target: string, data?: object, cookie = '', bearer = '') {
+      const headers = new Headers()
+      let status = 0
+      let payload = ''
+      const req = { method, socket: { remoteAddress: '127.0.0.1' }, headers: {
+        host: 'localhost', 'content-type': 'application/json', cookie, authorization: bearer ? 'Bearer ' + bearer : '',
+      }, async *[Symbol.asyncIterator]() { if (data) yield Buffer.from(JSON.stringify(data)) } }
+      const res = { setHeader(name: string, value: string) { headers.set(name, value) },
+        writeHead(code: number) { status = code }, end(value: string) { payload = value } }
+      await api(req, res, new URL(target, 'http://localhost'))
+      return new Response(payload, { status, headers })
+    }
+    const setup = await send('POST', '/api/auth/setup', { username: 'owner', password: 'fixture-admin-pass', setupCode: 'fixture-secret-setup' })
+    const cookie = setup.headers.get('set-cookie')!.split(';')[0]
+    const route = '/api/settings/integrations'
+    const invalid = await send('POST', route, { action: 'save-komga', url: 'http://unapproved.invalid', apiKey: 'abc' }, cookie)
+    expect(invalid.status).toBe(400)
+    const first = await (await send('POST', route, { action: 'rotate-dsh' }, cookie)).json()
+    expect(first.token).toMatch(/^studio_dsh_/)
+    const stored = await readFile(path.join(dataDir, 'auth', 'integrations.json'), 'utf8')
+    expect(stored).not.toContain(first.token)
+    expect(stored).toContain(hash('sha256', first.token, 'hex'))
+    expect(await (await send('GET', route, undefined, cookie)).json()).not.toHaveProperty('token')
+    expect((await send('GET', '/api/health', undefined, '', first.token)).status).toBe(200)
+    expect((await send('GET', route, undefined, '', first.token)).status).toBe(403)
+    expect((await send('POST', '/api/tasks', {}, '', first.token)).status).toBe(403)
+    const second = await (await send('POST', route, { action: 'rotate-dsh' }, cookie)).json()
+    expect((await send('GET', '/api/health', undefined, '', first.token)).status).toBe(401)
+    expect((await send('GET', '/api/health', undefined, '', second.token)).status).toBe(200)
+    await send('POST', route, { action: 'revoke-dsh' }, cookie)
+    expect((await send('GET', '/api/health', undefined, '', second.token)).status).toBe(401)
+  } finally {
+    auth.close()
+    await rm(dataDir, { recursive: true, force: true })
+  }
+})
