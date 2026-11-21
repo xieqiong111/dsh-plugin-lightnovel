@@ -124,10 +124,14 @@ const settings = readSettings()
 const { runtime, logger } = await boot(settings)
 const mangaClient = runtime.suwayomi ?? createSuwayomiClient()
 const komgaClient = runtime.komga ?? createKomgaClient()
+if (settings.accountAuth) {
+  const { openStudioAuth } = await import('./auth.mjs')
+  settings.auth = openStudioAuth(settings)
+}
 const handleApi = createApi(runtime, settings, logger, mangaClient, komgaClient)
 
 const server = http.createServer((req, res) => {
-  const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`)
+  const url = new URL(req.url ?? '/', 'http://localhost')
   if (settings.corsOrigin) {
     res.setHeader('access-control-allow-origin', settings.corsOrigin)
     res.setHeader('access-control-allow-headers', 'content-type, x-ln-token, authorization')
@@ -167,6 +171,7 @@ async function shutdown(signal) {
   logger.info('webapi', 'shutdown', { signal })
   server.close()
   await runtime.dispose()
+  settings.auth?.close()
   process.exit(0)
 }
 process.on('SIGINT', () => void shutdown('SIGINT'))

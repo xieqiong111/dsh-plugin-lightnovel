@@ -395,3 +395,17 @@ React (web/dist)  ──HTTP──>  server/serve.mjs  ──直接调用──>
 - 界面插画、8 套小说封面、favicon 均为本项目原创 SVG，无第三方版权素材。
 - 字体：Inter（SIL Open Font License），已本地化到 `public/fonts/`。
 - 图标：Lucide（ISC License）。
+
+## 首次创建管理员
+
+Docker 版 Studio 默认启用账号登录。首次打开页面时，从挂载的数据目录读取 `auth/setup-code`，或使用环境变量 `LN_STUDIO_SETUP_CODE`，再设置账号和至少 10 个字符的密码。
+
+```sh
+docker compose -f docker-compose.web.yml exec web cat /data/auth/setup-code
+```
+
+登录时可选择此设备 8 小时、1 天、7 天或 30 天免登录。到期需要重新登录，退出登录会立即注销当前会话。账号与会话保存在数据目录的 `auth/studio.sqlite`，升级时继续挂载同一目录。
+
+通过 HTTPS 反代访问时，设置 `LN_STUDIO_SECURE_COOKIE=true`。反代改写 Host 时，还需设置 `LN_STUDIO_WEB_ORIGIN` 为浏览器看到的完整 origin。账号登录使用同源部署。独立脚本可继续使用已配置的 `LN_BFF_TOKEN`，DSH 原生工具仍连接原有的 Docker 服务。
+
+直接运行 `node server/serve.mjs` 时，可通过 `LN_STUDIO_ACCOUNTS=true` 启用账号登录。纯 Mock 模式不请求登录接口。

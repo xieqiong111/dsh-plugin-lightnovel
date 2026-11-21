@@ -6,14 +6,18 @@ import { Badge, Button, Card, SectionTitle } from '@/components/common/ui'
 import { Modal } from '@/components/common/Modal'
 import { PageHeader } from '@/components/common/PageHeader'
 import { useToast } from '@/components/common/Toast'
+import { useAsync } from '@/hooks/useAsync'
 import { novelApi } from '@/services/novelApi'
-import { API_BASE, DEMO, IS_LIVE, getApiToken, setApiToken, type RuntimeStatus } from '@/services/runtime'
+import { API_BASE, DEMO, IS_LIVE, apiFetch, getApiToken, setApiToken, type RuntimeStatus } from '@/services/runtime'
 import { cn } from '@/services/utils'
 
 export function SettingsPage() {
   const { toast } = useToast()
   const [apiBase, setApiBase] = useState(IS_LIVE ? `${window.location.origin}${API_BASE}` : 'http://127.0.0.1:8080/api')
   const [token, setToken] = useState(getApiToken())
+  const login = useAsync(() => IS_LIVE ? apiFetch<{ enabled: boolean }>('/auth/status') : Promise.resolve({ enabled: false }), [])
+  const accountAuth = login.data?.enabled === true
+  const legacyToken = IS_LIVE && login.data?.enabled === false
   const [status, setStatus] = useState<RuntimeStatus | null>(null)
   const [poll, setPoll] = useState('2000')
   const [concurrency, setConcurrency] = useState('2')
@@ -43,13 +47,13 @@ export function SettingsPage() {
         title="系统设置"
         description={
           IS_LIVE
-            ? '运行信息读取自插件运行时（GET /api/status）。访问令牌仅保存在本浏览器 localStorage；服务端配置需通过环境变量修改，本页不提供写入接口。'
+            ? accountAuth ? '查看服务连接与运行信息。' : '运行信息读取自插件运行时（GET /api/status）。访问令牌仅保存在本浏览器 localStorage；服务端配置需通过环境变量修改，本页不提供写入接口。'
             : '前端演示用配置面板。除界面偏好外，所有与后端相关的字段都不会真正保存或生效。'
         }
         actions={
           <>
             <Badge tone={IS_LIVE ? 'green' : 'amber'} className="h-7 px-3">{IS_LIVE ? DEMO.label : '未持久化'}</Badge>
-            <Button
+            {(!IS_LIVE || legacyToken) && <Button
               variant="primary"
               size="sm"
               icon={<Save className="h-3.5 w-3.5" />}
@@ -63,7 +67,7 @@ export function SettingsPage() {
               }}
             >
               保存设置
-            </Button>
+            </Button>}
           </>
         }
       />
@@ -84,7 +88,7 @@ export function SettingsPage() {
                   className="h-10 w-full rounded-[10px] border border-[#EFEDF6] bg-[#FBFAFE] px-3 font-mono text-[11px] text-[#3F4058] focus:border-[#C4B5FB] focus:bg-white focus:outline-none"
                 />
               </Field>
-              {IS_LIVE && (
+              {legacyToken && (
                 <Field label="访问令牌 X-LN-Token" hint="留空表示服务端未启用鉴权">
                   <input
                     type="password"
@@ -104,7 +108,7 @@ export function SettingsPage() {
                   <Select value={concurrency} onChange={setConcurrency} options={[['1', '1 个'], ['2', '2 个'], ['3', '3 个'], ['5', '5 个']]} />
                 </Field>
               </div>
-              <Field label="会话与认证" hint="生产环境应启用 CSRF 防护与请求体限制">
+              <Field label="会话与认证" hint={accountAuth ? '下次登录时可选择此设备的免登录时长' : undefined}>
                 <div className="flex h-10 items-center justify-between rounded-[10px] border border-[#EFEDF6] bg-[#FBFAFE] px-3 text-[11px] text-[#8B8BA0]">
                   <span className="flex items-center gap-1.5">
                     <ShieldCheck className="h-3.5 w-3.5 text-[#10B981]" />
@@ -194,7 +198,7 @@ export function SettingsPage() {
                 ['搜索模式', IS_LIVE ? status?.searchMode ?? '读取中…' : '本地样例过滤'],
                 ['robots / 限速', IS_LIVE ? (status?.respectRobots ? '已启用' : '未启用') : '不适用'],
                 ['离线限定', IS_LIVE ? (status?.offlineOnly ? '是（仅 fixture）' : '否') : '不适用'],
-                ['鉴权', IS_LIVE ? (status?.features.token ? '已启用' : '未启用') : '不适用'],
+                ['鉴权', IS_LIVE ? (accountAuth || status?.features.token ? '已启用' : '未启用') : '不适用'],
                 ['构建工具', 'Vite + React 18'],
               ].map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between gap-3">

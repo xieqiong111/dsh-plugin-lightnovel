@@ -49,8 +49,12 @@ services:
       LN_FIXTURES_DIR: /opt/lightnovel/test/fixtures
       LN_DART_BINARY: /opt/bnp/bnp_headless
       LN_DART_PROJECT_DIR: /opt/lightnovel/vendor/bili_novel_packer
-      # Optional shared-secret gate for every /api/* request. Empty = disabled.
+      # Optional token for scripts. Browser access uses accounts by default.
       LN_BFF_TOKEN: "${LN_BFF_TOKEN:-}"
+      LN_STUDIO_ACCOUNTS: "${LN_STUDIO_ACCOUNTS:-true}"
+      LN_STUDIO_SETUP_CODE: "${LN_STUDIO_SETUP_CODE:-}"
+      LN_STUDIO_SECURE_COOKIE: "${LN_STUDIO_SECURE_COOKIE:-false}"
+      LN_STUDIO_WEB_ORIGIN: "${LN_STUDIO_WEB_ORIGIN:-}"
       # Destructive DELETE /api/library/:id stays off unless explicitly opted in.
       LN_BFF_ALLOW_DELETE: "${LN_BFF_ALLOW_DELETE:-false}"
       LN_BFF_CORS_ORIGIN: "${LN_BFF_CORS_ORIGIN:-}"
@@ -92,13 +96,12 @@ services:
       - "${LN_DART_BINARY_HOST:-./bnp_headless}:/opt/bnp/bnp_headless:ro"
 
     healthcheck:
-      # Works with or without LN_BFF_TOKEN: the token is read from the
-      # container environment, never embedded in this file.
+      # The auth status endpoint is available before the account is created.
       test:
         - "CMD"
         - "node"
         - "-e"
-        - "const h=process.env.LN_BFF_TOKEN?{'x-ln-token':process.env.LN_BFF_TOKEN}:{};fetch('http://127.0.0.1:8080/api/health',{headers:h}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        - "fetch('http://127.0.0.1:8080/api/auth/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
       interval: 30s
       timeout: 5s
       retries: 3

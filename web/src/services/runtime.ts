@@ -67,6 +67,7 @@ function apiError(response: Response, message = `${response.status} ${response.s
 export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, { ...init, headers: headers(init) })
   if (!response.ok) {
+    if (response.status === 401 && !path.startsWith('/auth/')) window.dispatchEvent(new Event('studio:unauthorized'))
     let message = `${response.status} ${response.statusText}`
     try {
       const body = (await response.json()) as { error?: { message?: string } }

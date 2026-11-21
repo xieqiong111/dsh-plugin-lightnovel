@@ -110,10 +110,10 @@ export function createApi(
   komgaClient = runtime.komga ?? createKomgaClient(),
 ) {
   const handleMangaApi = createMangaApi(mangaClient, logger, {
-    missingBffAuth: settings.mangaCredentialsConfigured && !settings.token,
+    missingBffAuth: settings.mangaCredentialsConfigured && !settings.token && !settings.auth,
   })
   const handleKomgaApi = createKomgaApi(komgaClient, logger, {
-    missingBffAuth: settings.komgaCredentialsConfigured && !settings.token,
+    missingBffAuth: settings.komgaCredentialsConfigured && !settings.token && !settings.auth,
   })
   const searchUrlConfigured = Boolean(
     process.env.LN_BILINOVEL_SEARCH_URL || process.env.LN_WENKU8_SEARCH_URL,
@@ -287,8 +287,14 @@ export function createApi(
   /** Returns true when the request was handled as /api/*. */
   return async function handle(req, res, url) {
     if (!url.pathname.startsWith('/api/')) return false
-    if (!tokenMatches(req, settings.token)) {
-      sendError(res, 401, 'UNAUTHORIZED', 'Missing or invalid X-LN-Token')
+    if (settings.auth && await settings.auth.handle(req, res, url)) return true
+    if (req.method === 'GET' && url.pathname === '/api/auth/status') {
+      sendJson(res, 200, { enabled: false })
+      return true
+    }
+    const tokenAllowed = (!settings.auth || Boolean(settings.token)) && tokenMatches(req, settings.token)
+    if (!tokenAllowed && !settings.auth?.sessionAllowed(req)) {
+      sendError(res, 401, 'UNAUTHORIZED', settings.auth ? '请先登录。' : 'Missing or invalid X-LN-Token')
       return true
     }
 
