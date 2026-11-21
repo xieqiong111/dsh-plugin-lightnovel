@@ -1,0 +1,26 @@
+services:
+  volume-cbz:
+    image: ${SUWAYOMI_VOLUME_IMAGE:-python:3.12-slim-bookworm}
+    restart: unless-stopped
+    user: "${SUWAYOMI_VOLUME_UID:-1000}:${SUWAYOMI_VOLUME_GID:-1000}"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    command: [python, -B, /app/archive.py, --output, /library, --connection-file, /run/suwayomi.json, --interval, "60"]
+    environment:
+      TMPDIR: /library
+    volumes:
+      - ./archive.py:/app/archive.py:ro
+      - ${SUWAYOMI_VOLUME_CONNECTION_FILE:?set SUWAYOMI_VOLUME_CONNECTION_FILE}:/run/suwayomi.json:ro
+      - ${SUWAYOMI_VOLUME_OUTPUT_DIR:?set SUWAYOMI_VOLUME_OUTPUT_DIR}:/library
+    networks: [suwayomi]
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "2"
+
+networks:
+  suwayomi:
+    external: true
+    name: ${SUWAYOMI_VOLUME_NETWORK:?set SUWAYOMI_VOLUME_NETWORK}
