@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createApi } from '../../server/api.mjs'
+import { createMangaApi } from '../../server/manga-api.mjs'
+import { SuwayomiError } from '../../server/suwayomi-client.mjs'
 
 function request(method: string, pathname: string, options: { token?: string; contentType?: string; body?: object; ip?: string } = {}) {
   return {
@@ -114,6 +116,34 @@ describe('Suwayomi BFF routes', () => {
     )
     expect(removed.status).toBe(200)
     expect(removed.json()).toMatchObject({ inLibrary: false, subscribed: false })
+  })
+
+  it('queues only the source chapters in the chosen Komga volume and reads its actual archive filename', async () => {
+    const download = vi.fn(async () => ({ queued: ['31'], skipped: ['30'], completed: [], unconfirmed: [] }))
+    const getVolumes = vi.fn(async (_mangaId: string) => [
+      { number: 1, chapterIds: ['29'], downloaded: 1, filename: '第01卷.cbz' },
+      { number: 2, chapterIds: ['30', '31'], downloaded: 1, filename: null },
+    ])
+    const api = createMangaApi({ download }, undefined, { getVolumes })
+    const path = '/api/manga/22/komga'
+    const url = new URL(path, 'http://localhost')
+    const invoke = async (method: string, body?: object) => {
+      const res = responseSink()
+      await api(request(method, path, { contentType: 'application/json', body }), res, url)
+      return res
+    }
+    expect((await invoke('GET')).json()).toEqual({ available: true, volumes: [
+      { number: 1, total: 1, downloaded: 1, filename: '第01卷.cbz' },
+      { number: 2, total: 2, downloaded: 1, filename: null },
+    ] })
+    expect((await invoke('POST', { volume: 3 })).status).toBe(409)
+    expect((await invoke('POST', { volume: 1 })).json().filename).toBe('第01卷.cbz')
+    expect(download).not.toHaveBeenCalled()
+    expect((await invoke('POST', { volume: 2, chapterIds: ['99'] })).json()).toMatchObject({ queued: ['31'], filename: null })
+    expect(download).toHaveBeenCalledExactlyOnceWith({ mangaId: '22', chapterIds: ['30', '31'] })
+    getVolumes.mockRejectedValueOnce(new SuwayomiError('VOLUME_ARCHIVE_UNAVAILABLE', 'offline', 503))
+    expect((await invoke('POST', { volume: 2 })).status).toBe(503)
+    expect(download).toHaveBeenCalledOnce()
   })
 
   it('rate-limits searches per client IP and returns Retry-After', async () => {

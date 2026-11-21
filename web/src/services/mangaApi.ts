@@ -30,3 +30,16 @@ const liveMangaApi = {
 }
 
 export const mangaApi: typeof liveMangaApi = IS_LIVE ? liveMangaApi : mangaMock
+
+export interface KomgaVolume {
+  number: number
+  total: number
+  downloaded: number
+  filename: string | null
+}
+
+export const mangaKomgaApi = {
+  volumes: (id: string) => apiFetch<{ available: boolean; volumes: KomgaVolume[] }>(`${mangaPath(id)}/komga`),
+  download: (id: string, volume: number) =>
+    apiFetch<DownloadResult & { filename: string | null }>(`${mangaPath(id)}/komga`, jsonPost({ volume })),
+}

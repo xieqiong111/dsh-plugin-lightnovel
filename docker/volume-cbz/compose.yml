@@ -6,14 +6,16 @@ services:
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
-    command: [python, -B, /app/archive.py, --output, /library, --connection-file, /run/suwayomi.json, --interval, "60"]
+    command: [python, -B, /app/archive.py, --output, /library, --connection-file, /run/suwayomi.json, --interval, "60", --status-port, "8788"]
     environment:
       TMPDIR: /library
     volumes:
       - ./archive.py:/app/archive.py:ro
       - ${SUWAYOMI_VOLUME_CONNECTION_FILE:?set SUWAYOMI_VOLUME_CONNECTION_FILE}:/run/suwayomi.json:ro
       - ${SUWAYOMI_VOLUME_OUTPUT_DIR:?set SUWAYOMI_VOLUME_OUTPUT_DIR}:/library
-    networks: [suwayomi]
+    networks:
+      suwayomi:
+        aliases: [suwayomi-volume-cbz]
     logging:
       driver: json-file
       options:

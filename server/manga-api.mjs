@@ -1,4 +1,5 @@
 import { SuwayomiError } from './suwayomi-client.mjs'
+import { createMangaVolumeClient } from './manga-volume-client.mjs'
 
 const MAX_BODY = 16 * 1024
 
@@ -94,7 +95,7 @@ function requiredId(value, field) {
  * Handles the browser-facing `/api/manga/*` routes. The parent router applies
  * the shared LN_BFF_TOKEN check before dispatching to this handler.
  */
-export function createMangaApi(client, logger = { warn() {} }, { missingBffAuth = false } = {}) {
+export function createMangaApi(client, logger = { warn() {} }, { missingBffAuth = false, getVolumes = createMangaVolumeClient() } = {}) {
   const requestBuckets = new Map()
   function limitRequest(req, bucketName, maxRequests) {
     const now = Date.now()
@@ -196,6 +197,33 @@ export function createMangaApi(client, logger = { warn() {} }, { missingBffAuth 
         const mangaId = requiredId(segments[0], 'mangaId')
         if (method === 'GET' && segments.length === 1) {
           sendJson(res, 200, await client.getManga(mangaId))
+          return true
+        }
+        if (segments.length === 2 && segments[1] === 'komga') {
+          if (method === 'GET') {
+            const volumes = getVolumes ? await getVolumes(mangaId) : []
+            sendJson(res, 200, {
+              available: Boolean(getVolumes),
+              volumes: volumes.map(({ chapterIds, ...volume }) => ({ ...volume, total: chapterIds.length })),
+            })
+            return true
+          }
+          if (!getVolumes) throw new MangaApiError(503, 'VOLUME_ARCHIVE_DISABLED', '尚未配置 Komga 归档服务。')
+          const { volume: number } = await readJson(req)
+          if (!Number.isInteger(number) || number < 1 || number > 9999) {
+            throw new MangaApiError(400, 'INVALID_VOLUME', '请选择有效卷号。')
+          }
+          const volume = (await getVolumes(mangaId)).find((entry) => entry.number === number)
+          if (!volume) throw new MangaApiError(409, 'VOLUME_UNAVAILABLE', '这一卷缺少明确的来源条目，或源目录已经变化。')
+          if (volume.filename || volume.downloaded === volume.chapterIds.length) {
+            sendJson(res, 200, { queued: [], skipped: volume.chapterIds, completed: [], unconfirmed: [], filename: volume.filename })
+            return true
+          }
+          if (volume.chapterIds.length > 100) {
+            throw new MangaApiError(409, 'VOLUME_TOO_LARGE', '该卷超过 100 话，请分批下载章节，下载齐后会自动归档。')
+          }
+          const result = await client.download({ mangaId, chapterIds: volume.chapterIds })
+          sendJson(res, 200, { ...result, filename: null })
           return true
         }
         if (method === 'GET' && segments.length === 2 && segments[1] === 'chapters') {

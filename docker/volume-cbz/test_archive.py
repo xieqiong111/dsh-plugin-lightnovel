@@ -6,7 +6,7 @@ from unittest.mock import patch
 from xml.etree import ElementTree
 from zipfile import BadZipFile, ZipFile
 
-from archive import ArchiveError, archive_volume, complete_volumes, volume_label
+from archive import ArchiveError, archive_volume, complete_volumes, volume_catalog, volume_label
 
 
 def chapter(chapter_id, name, downloaded=True, page_count=3):
@@ -65,6 +65,24 @@ class VolumeArchiveTests(unittest.TestCase):
                 xml = ElementTree.fromstring(archive.read("ComicInfo.xml"))
                 self.assertEqual(xml.findtext("Number"), "2")
                 self.assertEqual(xml.findtext("PageCount"), "6")
+
+    def test_catalog_reports_written_cbz_and_groups_missing_chapters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            client = FakeSuwayomi()
+            manga = {"id": 1, "sourceId": "2", "title": "樣本"}
+            one = chapter(10, "第1卷")
+            two = chapter(11, "第2卷 第5话", downloaded=False)
+            three = chapter(12, "第2卷 第6话", downloaded=False)
+            archive_volume(client, root, manga, 1, [one])
+            with patch.object(client, "manga", return_value=manga, create=True), patch.object(
+                client, "manga_chapters", return_value=[three, one, two], create=True
+            ):
+                catalog = volume_catalog(client, root, 1)
+            self.assertEqual(catalog["volumes"], [
+                {"number": 1, "chapterIds": ["10"], "downloaded": 1, "filename": "第01卷.cbz"},
+                {"number": 2, "chapterIds": ["11", "12"], "downloaded": 0, "filename": None},
+            ])
 
     def test_failed_refresh_preserves_existing_archive(self):
         with tempfile.TemporaryDirectory() as directory:

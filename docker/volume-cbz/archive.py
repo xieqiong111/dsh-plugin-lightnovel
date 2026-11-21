@@ -8,6 +8,8 @@ from contextlib import contextmanager
 from decimal import Decimal
 import fcntl
 import json
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from itertools import islice
 import logging
 import os
 from pathlib import Path, PurePosixPath
@@ -15,6 +17,7 @@ import re
 import shutil
 import tempfile
 import time
+from threading import Thread
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
@@ -120,6 +123,9 @@ class Suwayomi:
             {"query": "isDownloaded: true"}, "manga { id title sourceId }"
         )}
 
+    def manga(self, manga_id):
+        return self.graphql("query($id: Int!) { manga(id: $id) { id title sourceId } }", id=manga_id)["manga"]
+
     def manga_chapters(self, manga_id):
         return self.chapters({"query": "mangaId: $id", "id": manga_id}, CHAPTER_FIELDS)
 
@@ -151,7 +157,7 @@ def volume_label(name):
     return None
 
 
-def complete_volumes(chapters):
+def planned_volumes(chapters):
     groups = defaultdict(list)
     for row in chapters:
         label = volume_label(row["name"])
@@ -164,7 +170,11 @@ def complete_volumes(chapters):
             logging.warning("volume %s skipped: duplicate entries need an explicit edition", volume)
             continue
         # A source's whole-volume entry takes precedence over separately labelled chapters.
-        selected = whole or [row for _, row in sorted(entries, key=lambda entry: entry[0])]
+        yield volume, whole or [row for _, row in sorted(entries, key=lambda entry: entry[0])]
+
+
+def complete_volumes(chapters):
+    for volume, selected in planned_volumes(chapters):
         if all(row["isDownloaded"] is True for row in selected):
             yield volume, selected
 
@@ -215,11 +225,74 @@ def add_chapter_pages(client, archive, chapter, first_page):
     return len(pages)
 
 
+def archive_signature(chapters):
+    return json.dumps({"version": 1, "chapters": [[row["id"], row["pageCount"]] for row in chapters]},
+                      separators=(",", ":")).encode()
+
+
+def volume_catalog(client, root, manga_id):
+    manga = client.manga(manga_id)
+    if not manga or str(manga["sourceId"]) == "0":
+        return {"volumes": []}
+    chapters = list(islice(client.manga_chapters(manga_id), 5001))
+    if len(chapters) > 5000:
+        raise ArchiveError("chapter catalog exceeds lookup limit")
+    folder = series_directory(root, manga)
+    volumes = []
+    for number, selected in planned_volumes(chapters):
+        filename = f"第{number:02}卷.cbz"
+        destination = folder / filename
+        archived = False
+        if destination.is_file() and not destination.is_symlink():
+            try:
+                with ZipFile(destination) as archive:
+                    archived = archive.comment == archive_signature(selected)
+            except BadZipFile:
+                pass
+        volumes.append({
+            "number": number,
+            "chapterIds": [str(row["id"]) for row in selected],
+            "downloaded": sum(row["isDownloaded"] is True for row in selected),
+            "filename": filename if archived else None,
+        })
+    return {"volumes": volumes}
+
+
+def start_status_server(client, root, port):
+    class Handler(BaseHTTPRequestHandler):
+        def setup(self):
+            self.request.settimeout(5)
+            super().setup()
+
+        def do_GET(self):
+            match = re.fullmatch(r"/manga/([1-9][0-9]{0,9})/volumes", self.path)
+            try:
+                if not match or int(match[1]) > 2**31 - 1:
+                    self.send_error(404)
+                    return
+                body = json.dumps(volume_catalog(client, root, int(match[1]))).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            except (BrokenPipeError, ConnectionResetError):
+                return
+            except (ArchiveError, OSError, ValueError, TypeError, KeyError):
+                self.send_error(503)
+
+        def log_message(self, *_args):
+            pass
+
+    server = HTTPServer(("0.0.0.0", port), Handler)
+    Thread(target=server.serve_forever, daemon=True).start()
+    return server
+
+
 def archive_volume(client, root, manga, volume, chapters):
     folder = series_directory(root, manga)
     destination = folder / f"第{volume:02}卷.cbz"
-    signature = json.dumps({"version": 1, "chapters": [[row["id"], row["pageCount"]] for row in chapters]},
-                           separators=(",", ":")).encode()
+    signature = archive_signature(chapters)
     if len(signature) > 65535:
         raise ArchiveError("too many chapters for one volume archive")
     if destination.is_symlink():
@@ -288,7 +361,10 @@ def main():
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--connection-file", type=Path, help="Suwayomi connection JSON (optional)")
     parser.add_argument("--interval", type=int, default=0, help="seconds between polls; zero runs once")
+    parser.add_argument("--status-port", type=int, help="internal HTTP status port")
     args = parser.parse_args()
+    if args.status_port is not None and (not args.interval or not 1024 <= args.status_port <= 65535):
+        parser.error("--status-port requires polling and a port from 1024 to 65535")
     if args.interval and args.interval < 30:
         parser.error("--interval must be zero or at least 30 seconds")
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -300,6 +376,8 @@ def main():
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             for stale in args.output.glob(".suwayomi-*.tmp"):
                 stale.unlink()
+            if args.status_port:
+                start_status_server(client, args.output, args.status_port)
             logging.info("Suwayomi volume exporter started (interval: %ds)", args.interval)
             while True:
                 try:

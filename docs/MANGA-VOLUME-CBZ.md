@@ -7,6 +7,12 @@
 - 纯话号、画集、预告以及无法选定版本的重复分卷会跳过。Suwayomi 仍可正常阅读和管理这些下载。
 - 作品目录包含来源 ID 和 Suwayomi 作品 ID。同名作品各自归档。写入失败时保留原有 CBZ，原始下载始终由 Suwayomi 管理。
 
+## Studio 一键下载
+
+在漫画详情的「下载到 Komga」选择一卷，点击「一键下载到 Komga」。Studio 会将该卷对应的条目提交给Suwayomi 下载队列，并跳过已经下载或已排队的条目。超过 100 话的分卷可使用章节区分批下载。点击「刷新归档状态」确认 CBZ 已写入目录。书库里的条目会在 Komga 扫描该目录后出现。
+
+BFF 接口为 `GET /api/manga/:id/komga`（每卷的总条目数、已下载数和已写入文件名）和 `POST /api/manga/:id/komga`（请求体 `{"volume":2}`，返回 Suwayomi 确认的队列结果）。卷号以归档服务读取到的来源目录为准。
+
 ## Docker 部署
 
 用现有 Suwayomi 实例的 Docker 网络。创建专用输出目录，例如 Komga 已扫描的漫画库目录下的 `Suwayomi`，让归档容器运行用户可写且让 Komga 可读。NAS 上可以让这两个容器使用同一 UID/GID。Docker 归档容器仅挂载此子目录，认证 JSON 以只读方式挂载。认证文件需要运行用户能读取，建议权限 `0600`，无需提交到仓库。可以复用 DSH 的连接 JSON，文件字段为 `LN_SUWAYOMI_URL`，若 Suwayomi 启用了 Basic 认证，再填写 `LN_SUWAYOMI_USERNAME` 和 `LN_SUWAYOMI_PASSWORD`。URL 应为容器可访问的 HTTP(S) origin，例如 `http://suwayomi:4567`。
@@ -25,6 +31,8 @@ SUWAYOMI_VOLUME_GID=1000
 docker compose --env-file .env -f docker/volume-cbz/compose.yml up -d
 docker compose --env-file .env -f docker/volume-cbz/compose.yml logs volume-cbz
 ```
+
+在 Studio 的环境变量中设置 `LN_VOLUME_ARCHIVE_URL=http://suwayomi-volume-cbz:8788`。Studio 与归档服务需加入同一个内部 Docker 网络，归档状态端口无需对宿主机发布。
 
 首次启动会检查已经下载的卷。停止归档服务后，已经生成的 CBZ 仍可阅读。`DOWNLOAD_AS_CBZ` 是 Suwayomi 自己的单话打包设置，归档支持 Suwayomi 以图片目录或 CBZ 保存的下载。
 

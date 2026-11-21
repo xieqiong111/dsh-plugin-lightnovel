@@ -8,7 +8,7 @@ import { useToast } from '@/components/common/Toast'
 import { MangaCover, mangaDate, mangaSource, mangaStatus } from '@/components/manga/MangaCard'
 import { MangaNotice } from '@/components/manga/MangaNotice'
 import { useAsync } from '@/hooks/useAsync'
-import { mangaApi } from '@/services/mangaApi'
+import { mangaApi, mangaKomgaApi } from '@/services/mangaApi'
 import { IS_LIVE } from '@/services/runtime'
 import type { MangaChapter } from '@/types/manga'
 
@@ -162,6 +162,7 @@ function MangaDetail({ id }: { id: string }) {
               </div>
             </Card>
             {actionError && <MangaNotice message={actionError} />}
+            {IS_LIVE && !localSource && <KomgaDownload id={id} revision={revision} />}
             <Card className="p-4 sm:p-5">
               <SectionTitle title="章节" />
               <div className="my-3 flex flex-wrap items-center gap-2">
@@ -218,5 +219,77 @@ function MangaDetail({ id }: { id: string }) {
         {actionError && <MangaNotice message={actionError} />}
       </Modal>
     </div>
+  )
+}
+
+function KomgaDownload({ id, revision }: { id: string; revision: number }) {
+  const { toast } = useToast()
+  const [refreshes, setRefreshes] = useState(0)
+  const catalog = useAsync(() => mangaKomgaApi.volumes(id), [id, revision, refreshes])
+  const [choice, setChoice] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const volumes = catalog.data?.volumes ?? []
+  const volume = volumes.find((entry) => String(entry.number) === choice) ?? volumes[0]
+  const waitingForArchive = volume && volume.downloaded === volume.total && !volume.filename
+
+  const download = async () => {
+    if (!volume) return
+    setBusy(true)
+    setError('')
+    try {
+      const result = await mangaKomgaApi.download(id, volume.number)
+      const unconfirmed = result.unconfirmed?.length ?? 0
+      if (unconfirmed) {
+        toast({ tone: 'warning', title: `${unconfirmed} 话的下载状态待确认`,
+          description: `已确认排队 ${result.queued.length} 话，请查看漫画下载队列。` })
+      } else if (result.filename) {
+        toast({ tone: 'success', title: `已写入 Komga 目录 · ${result.filename}` })
+      } else {
+        toast({
+          tone: 'info',
+          title: result.queued.length ? `已确认排队 ${result.queued.length} 话` : '没有新增下载任务',
+          description: '该卷下载齐后会自动写入 Komga 目录，可刷新查看归档结果。',
+        })
+      }
+      setRefreshes((current) => current + 1)
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : '提交 Komga 下载失败。')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Card className="p-4 sm:p-5">
+      <SectionTitle title="下载到 Komga" />
+      {catalog.loading && !catalog.data ? <p role="status" className="mt-2 text-xs text-[#6B6B85]"><Spinner /> 读取分卷…</p>
+        : catalog.error ? <MangaNotice message={catalog.error} />
+        : !catalog.data?.available ? <p className="mt-2 text-xs text-[#6B6B85]">此 Studio 尚未连接 Komga 归档服务。</p>
+        : !volume ? <p className="mt-2 text-xs text-[#6B6B85]">该来源没有可识别的分卷，可在下方下载单话。</p>
+        : (
+          <>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <select aria-label="选择要下载到 Komga 的卷" value={String(volume.number)} disabled={busy || catalog.loading}
+                onChange={(event) => { setChoice(event.target.value); setError('') }}
+                className="max-w-full rounded-lg border border-[#E7E0FA] bg-white px-3 py-2 text-xs text-[#2B2C44]">
+                {volumes.map((entry) => <option key={entry.number} value={entry.number}>第 {entry.number} 卷</option>)}
+              </select>
+              <Button size="sm" variant="primary" loading={busy}
+                disabled={busy || catalog.loading || Boolean(volume.filename) || Boolean(waitingForArchive) || volume.total > 100}
+                icon={<Download className="h-3.5 w-3.5" />} onClick={() => void download()}>一键下载到 Komga</Button>
+            </div>
+            <p role="status" className="mt-2 text-xs text-[#6B6B85]">
+              {volume.filename ? `已写入 Komga 目录 · ${volume.filename}`
+                : waitingForArchive ? '本卷已下载，正在等待生成 CBZ。'
+                : volume.total > 100 ? '该卷超过 100 话，请分批下载章节，下载齐后会自动归档。'
+                : `已下载 ${volume.downloaded} / ${volume.total} 条，下载齐后自动生成一个 CBZ。`}
+            </p>
+          </>
+        )}
+      {(catalog.error || catalog.data?.available) && <Button size="sm" className="mt-2" disabled={busy || catalog.loading}
+        icon={<RefreshCw className="h-3.5 w-3.5" />} onClick={() => setRefreshes((current) => current + 1)}>刷新归档状态</Button>}
+      {error && <MangaNotice message={error} />}
+    </Card>
   )
 }
