@@ -42,6 +42,10 @@ export interface Config {
     logLevel: LogLevelName;
     /** Extra traditional->simplified pairs, e.g. "臺台,裡里". */
     extraTraditionalMap: string;
+    /** Private JSON file with Suwayomi and Komga archive connection variables. */
+    mangaConnectionFile?: string;
+    novelStorageRoot?: string;
+    downloadFoldersFile?: string;
 }
 /** Runtime schema. Exported as `Config` because the Cordis loader looks it up. */
 export declare const Config: Schema<Config>;

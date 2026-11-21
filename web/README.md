@@ -1,297 +1,85 @@
-# Lightnovel Studio · Web 前端
+# Studio WebUI
 
-DeepSeek Harness「轻小说插件」的 Web 管理前端。视觉以需求方提供的 `lightnovel-frontend-preview.png`（1600×1405）为唯一基准，逐区域还原布局、配色、卡片、表格与动效；所有界面均由真实 React 组件 + Tailwind 实现，没有把设计图当作背景。
+Novel & Manga Library 的管理界面使用 React、TypeScript 和 Vite。搜索、书库和下载任务支持按轻小说和漫画筛选。小说详情、漫画详情以及当前页面的筛选可通过 URL 保留。
 
-- 技术栈：React 18 · TypeScript 5 · Vite 6 · Tailwind CSS 3 · Lucide Icons · React Router 6
-- 数据层：同一个 UI 两种构建模式
-  - **Mock（默认）**：`web/src/data/mock.ts`，纯静态、无网络，界面标注「交互原型 · 非真实数据」
-  - **Live**：`VITE_API_MODE=live`，全部调用仓库根 `server/serve.mjs` 的 `/api/*`，由 `PluginRuntime` 驱动真实搜索、下载与 EPUB 书库
-- 状态：`npm run typecheck`、两种构建均通过；Live 模式 7 路由 + 移动端无 console error；`npm run verify:web` 49/49
+## 本地预览与 Live 部署
 
----
+从仓库根目录执行。
 
-## 1. 快速开始
-
-环境要求：Node.js ≥ 24（BFF 与插件运行时要求，前端本身 ≥ 18）、npm ≥ 9；Live 下载还需 Dart SDK ≥ 3.11 或预编译的 `bnp_headless`。
-
-```bash
-cd web
-npm install
-
-# A. Mock 预览（无后端）
-npm run dev        # http://localhost:5173
-
-# B. Live 开发（另开终端，在仓库根启动 BFF）
-node server/serve.mjs          # http://127.0.0.1:5273，/api/* + 静态托管
-VITE_API_MODE=live npm run dev # 5173，/api 代理到 5273
+```sh
+npm --prefix web ci
+npm --prefix web run dev -- --host 127.0.0.1
 ```
 
-生产构建与本地预览：
+默认是 Mock 模式，用于预览搜索、书架和下载交互。要连接真实服务，准备插件构建产物、Dart 和上游配置，按 [NAS 部署指南](../docs/DEPLOY-NAS.md#4-web-管理台bff--live-前端) 启动 BFF。前端生产构建命令如下。
 
-```bash
-npm run build                        # Mock：tsc -b && vite build，产物 dist/
-VITE_API_MODE=live npm run build     # Live：同一产物目录，调用 /api
-npm run preview                      # 默认 http://localhost:4173（需配合 BFF）
-npm run typecheck                    # 仅类型检查
+```sh
+VITE_API_MODE=live npm run web:build
 ```
 
-> 前端使用 `HashRouter`，`dist/` 可直接放到任意静态目录（含子路径）下打开，无需额外 rewrite 规则。`vite.config.ts` 中 `base: './'`；`server.proxy` 仅在 `npm run dev` 生效，生产由 `server/serve.mjs` 同源托管。
->
-> `API_BASE` 默认 `/api`，可用 `VITE_API_BASE` 指向独立域名；跨域时在 BFF 侧设 `LN_BFF_CORS_ORIGIN`。
+`server/serve.mjs` 同源托管 `web/dist/` 和 `/api/`。默认监听 `127.0.0.1:5273`，容器内使用 `0.0.0.0:8080`。前端 API 路径默认是 `/api`，可用 `VITE_API_BASE` 覆盖。Live 遇到上游故障时显示实际错误。
 
----
+## 常用操作
 
-## 2. 目录结构
+- **轻小说** · 搜索作品，打开详情页选卷，提交 EPUB 下载。任务完成后在「我的书库」查看文件，可下载或校验。
+- **漫画** · 在搜索页选择「漫画」并筛选来源，进入作品详情后选择章节提交下载。已部署归档服务时，也可选卷并点「一键下载到 Komga」。
+- **书库** · Studio 书库汇总 EPUB 与 Suwayomi 书架。切换到 Komga 后，可浏览该实例中凭据有权查看的系列。
+- **下载队列** · 进入「下载任务」，按类型与状态筛选。可用操作以各下载后端为准。
+- **系统设置** · 查看连接情况，选择保存目录，配置 Komga 或发放 DSH 只读 API 密钥。
 
-```text
-web/
-├── public/
-│   ├── favicon.svg
-│   └── fonts/InterVariable.woff2      # 本地字体，离线可用
-├── docs/
-│   ├── screenshots/                   # 桌面 / 移动端截图、参考图对比图
-│   └── COMPARISON.md                  # 逐区域还原说明
-├── src/
-│   ├── components/
-│   │   ├── common/    ui.tsx（Button/Card/Badge/Progress…）、Modal、Toast、PageHeader
-│   │   ├── layout/    AppShell、Sidebar、Topbar
-│   │   ├── novel/     CoverArt、HeroArt、NovelCard、NovelDetailDialog、VolumeSelector
-│   │   └── tasks/     （任务相关视图内聚在 TasksPage 中）
-│   ├── pages/         Dashboard / Search / NovelDetail / Tasks / Library / Sources / AutoUpdate / Stats / Settings
-│   ├── data/mock.ts   全部演示数据（小说、分卷、任务、书库、书源、活动）
-│   ├── hooks/useAsync.ts
-│   ├── services/
-│   │   ├── runtime.ts     API_MODE / IS_LIVE / API_BASE / token 与 fetch 封装
-│   │   ├── novelApi.ts    mockApi + liveApi 双实现，页面只依赖统一接口
-│   │   ├── taskStore.ts   mockStore（2.6s 演示）/ liveStore（2s 轮询 /api/tasks）
-│   │   └── utils.ts       cn / sleep / uid / formatBytes
-│   ├── styles/index.css   设计变量、卡片、滚动条、骨架屏、动效
-│   ├── types/index.ts     领域类型
-│   ├── App.tsx
-│   └── main.tsx
-├── index.html
-├── tailwind.config.js
-├── postcss.config.js
-├── tsconfig.json
-├── vite.config.ts
-└── package.json
+## 首次创建管理员
+
+Docker 版 Studio 默认启用账号登录。首次打开页面时，从挂载的数据目录读取 `auth/setup-code`，或使用环境变量 `LN_STUDIO_SETUP_CODE`，再设置账号和至少 10 个字符的密码。
+
+```sh
+docker compose -f docker-compose.web.yml exec web cat /data/auth/setup-code
 ```
 
----
+登录时可选择此设备 8 小时、1 天、7 天或 30 天免登录。到期需要重新登录，退出登录会立即注销当前会话。账号与会话保存在数据目录的 `auth/studio.sqlite`，升级时继续挂载同一目录。
 
-## 3. 设计变量（从参考图取样）
+通过 HTTPS 反代访问时，设置 `LN_STUDIO_SECURE_COOKIE=true`。反代改写 Host 时，还需设置 `LN_STUDIO_WEB_ORIGIN` 为浏览器看到的完整 origin。账号登录使用同源部署。独立脚本可继续使用已配置的 `LN_BFF_TOKEN`，DSH 原生工具仍连接原有的 Docker 服务。
 
-| 项目 | 取值 | 说明 |
-| --- | --- | --- |
-| 侧边栏宽度 | `248px` | 固定，深紫渐变 `#181935 → #262352` |
-| 顶栏高度 | `76px` | sticky，白 82% + `backdrop-blur` |
-| 内容左右留白 | `36px` | 主区最大宽度 `1600px` 居中 |
-| 左栏 / 右栏 | `944px / 310px` | `xl` 起两栏，间距 `24px` |
-| 主色 | `#7E5EE9`（深 `#6C4AD9`，浅 `#EDE9FE`） | 按钮、选中态、强调线 |
-| 页面底色 | `#F7F7FC` | 卡片 `#FFFFFF`，描边 `#F1EFF8` |
-| 文字 | `#25263C / #6B6B85 / #A2A2B6` | 三级层级 |
-| 圆角 | 卡片 `20px`，内块 `12–14px`，按钮 `10–12px` | — |
-| 阴影 | `0 18px 40px -28px rgba(78,54,168,.28)` | 柔和、低透明度 |
-| 封面比例 | `3 / 4`（SVG `preserveAspectRatio=slice`） | 任意尺寸不拉伸 |
-| 字体 | Inter（数字/拉丁）+ 系统中文字体 | `font-feature-settings:"cv02"` |
+直接运行 `node server/serve.mjs` 时，可通过 `LN_STUDIO_ACCOUNTS=true` 启用账号登录。纯 Mock 模式不请求登录接口。
 
-语义色：连载 `#10B981`、完结 `#8B63F2`、警告 `#F59E0B`、失败 `#F472B6`。
+## 分别设置下载保存目录
 
----
+登录后打开「系统设置 → NAS 保存目录」。点击「浏览 NAS」，在文件夹列表中逐级进入子目录，也可以点目录层级跳回上级。轻小说 EPUB 和漫画 CBZ 分开设置，可选择已有目录或新建后使用。切换后，新生成的文件会写入新位置。旧文件及索引留在原目录，仍然可访问。轻小说可以恢复 Studio 原默认路径。漫画选项改变的是 CBZ 归档位置，Suwayomi 自己的章节缓存仍由 Suwayomi 管理。
 
-## 4. 界面截图
+Docker 部署在 `.env` 中指定 `LN_NOVEL_STORAGE_HOST`、`LN_MANGA_STORAGE_HOST`、`LN_DOWNLOAD_SETTINGS_HOST`，并提前创建这三个目录。要使用 Komga，前两个路径应分别位于它对应的书库里。归档容器和 Studio 需共享同一个 `LN_DOWNLOAD_SETTINGS_HOST`，并将 `SUWAYOMI_VOLUME_OUTPUT_DIR` 设置为 Studio 的 `LN_MANGA_STORAGE_HOST`。独立 Compose 请使用绝对路径。Suwayomi 归档服务读取设置后，下一次扫描生效。Dart 独立 DSH 进程的小说保存路径仍由其插件配置控制。
 
-### 4.1 Dashboard（1600 宽，与参考图同基准）
+接口为 `GET /api/settings/download-folders`、`GET /api/settings/download-folders/browse?kind=novel&folder=`、`POST /api/settings/download-folders`。提交相对于各自挂载的路径，如 `{"kind":"novel","folder":"收藏","create":true}`。仅支持已挂载根目录下的目录，拒绝符号链接和越界路径。
 
-![Dashboard](./docs/screenshots/dashboard-1600.png)
+### 同步 Komga 书库路径
 
-### 4.2 与参考图并排对比（左侧参考 / 右侧实现，等比 50%）
+在轻小说或漫画卡片点击「同步 Komga 路径」，选书库后点击「同步路径并刷新」。Studio 会选择该 Komga 书库与当前类型可写挂载的共同目录。例如 Komga 书库根是 `/NAS/漫画`，Studio 挂载的是 `/NAS/漫画/Suwayomi`，则使用后者。两边的 NAS 路径名称需一致；范围外的书库只可请求刷新。此操作更新 Studio 的保存位置，Komga 库根和已有文件保持原位。
 
-![Compare](./docs/screenshots/compare-dashboard.png)
+「仅刷新书库」只提交扫描。Komga 需要管理员权限，接受后在后台扫描。页面分别显示保存和扫描结果，可在扫描完成后从「我的书库 → Komga」查看。接口为 `GET /api/settings/download-folders/komga?kind=manga` 和 `POST /api/settings/download-folders/komga`，POST 传 `kind`、`libraryId` 和 `action`（`sync` 或 `scan`）。两者都需要 Studio 管理员会话。
 
-### 4.3 1440×900 与 1920×1080 桌面端
+## Komga API 和 DSH 只读密钥
 
-| 1440×900 | 1920×1080 |
-| --- | --- |
-| ![1440](./docs/screenshots/desktop-1440.png) | ![1920](./docs/screenshots/desktop-1920.png) |
+管理员登录后，打开「系统设置 → 服务集成」。在 Komga 区域填写服务地址和 Komga 生成的 API Key，点击「测试并保存」。Studio 会验证能否读取书库，成功后立即用于 WebUI。地址应列在部署的 `LN_KOMGA_ALLOWED_URLS` 中，或与原有 `LN_KOMGA_URL` 一致。Komga 密钥保存在 Studio 私有数据目录，页面不会回显。
 
-### 4.4 其余页面（1600 宽）
+点「生成只读密钥」后立即复制。每个 Studio 实例有一个有效的 DSH 只读密钥，重新生成和撤销会使旧密钥立即失效。用 `Authorization: Bearer <令牌>` 调用 Studio 的健康、书库、任务和漫画归档状态接口。密钥无法提交下载、删除文件或读取管理设置。
 
-| 搜索发现 | 小说详情 |
-| --- | --- |
-| ![search](./docs/screenshots/search-1600.png) | ![detail](./docs/screenshots/detail-1600.png) |
+DSH 可将令牌保存在仅运行用户可读的文件中，并设置 `LN_STUDIO_READ_URL`（Studio 的 HTTP(S) origin）和 `LN_STUDIO_READ_TOKEN_FILE`（容器内文件路径）。例如调用 `studio_read(resource="mangaTasks")` 查询队列，或 `studio_read(resource="komga")` 查询 Komga 书库。已有漫画下载工具继续使用 Suwayomi Docker API。不要把令牌放进对话、URL 或仓库。
 
-| 下载任务 | 我的书库（网格） |
-| --- | --- |
-| ![tasks](./docs/screenshots/tasks-1600.png) | ![library](./docs/screenshots/library-1600.png) |
+## HTTP API
 
-| 我的书库（表格） | 书源状态 |
-| --- | --- |
-| ![library-table](./docs/screenshots/library-table-1600.png) | ![sources](./docs/screenshots/sources-1600.png) |
-
-| 自动追更（UI 占位） | 统计分析 |
-| --- | --- |
-| ![auto](./docs/screenshots/auto-update-1600.png) | ![stats](./docs/screenshots/stats-1600.png) |
-
-![settings](./docs/screenshots/settings-1600.png)
-
-### 4.5 移动端与平板
-
-| 移动端 Dashboard（390） | 移动端搜索 | 移动端任务 |
-| --- | --- | --- |
-| ![mobile](./docs/screenshots/mobile-390.png) | ![mobile-search](./docs/screenshots/mobile-390-search.png) | ![mobile-tasks](./docs/screenshots/mobile-390-tasks.png) |
-
-| 移动端抽屉导航 | 平板 768 |
-| --- | --- |
-| ![drawer](./docs/screenshots/mobile-drawer.png) | ![tablet](./docs/screenshots/tablet-768.png) |
-
----
-
-## 5. 与参考图的还原说明（摘要）
-
-完整逐项说明见 [docs/COMPARISON.md](./docs/COMPARISON.md)。
-
-1. **整体骨架**：248px 深紫侧栏 + 76px 毛玻璃顶栏 + 36px 内边距，顶栏左为 `LIGHTNOVEL > 页面名` 面包屑，右为数据模式胶囊（Mock「交互原型 · 非真实数据」/ Live「实时数据」）、查看仓库、通知、LN 头像。
-2. **Hero 横幅**：淡紫渐变（`#F5F2FF → #C9C1F5`），左侧为 `FIND YOUR NEXT STORY` 小标题、深色主标题 + 紫色渐变副标题、胶囊搜索框、演示提示与热门词；右侧为**原创 SVG 插画**（两本叠放书卡、细线圆环、花瓣与星芒），不使用位图，因此不会出现加载失败或拉伸。
-3. **四个功能入口**：等宽 4 列、圆形浅色图标底、标题 + 说明，与参考图的比例/间距一致。
-4. **为你精选**：5 列封面卡，封面同为 3:4 比例的抽象几何封面（8 套主题配色，取自参考图取样），卡片含系列号、书名、作者、卷数、书源、连载/完结状态；hover 抬升 + 封面微缩放。
-5. **右栏**：下载任务（双任务 + 紫色进度条 + 百分比）、书库概览（2×2 统计块）、最近活动（时间线式 4 条），宽度 310px、卡间距 19px。
-6. **最近入库**：表头灰底、三行文件记录、完整性胶囊，列宽按参考图 92 / 74 / 96 对齐。
-7. **页脚**：`Made for light-novel explorers ✦` 与 `DSH Plugin LightNovel · UI Concept v1.0` 左右分置。
-8. **动效**：卡片 hover 抬升、封面缩放、按钮按压、Toast 右上滑入、页面 `fade-up`、进度条宽度过渡；全部尊重 `prefers-reduced-motion`。
-
-**客观差异（均为需求驱动或环境差异）**
-
-- 需求新增了「自动追更 / 统计分析」两个导航项，参考图只有 7 个入口；导航项间距按比例压缩，未改变视觉语言。
-- Hero 内增加「热门」关键词行（搜索页/需求中要求），占用参考图中提示行右侧的空白。
-- 所有页面均出现「交互原型 · 非真实数据」标识，这是 Mock 数据的可辨识要求。
-- 插画与封面为原创 SVG 重绘，风格贴近参考图而非逐像素复制；书名、作者等文字按参考图布局重新排版。
-- 中文字体随操作系统回退（Linux 截图使用 Noto Sans CJK，macOS/Windows 为 PingFang / 微软雅黑），字形宽度略有差异。
-- 参考图是 1600×1405 的整页设计稿，侧栏高度为设计视口高度；实现中侧栏为 `fixed` 100vh，长页面滚动时保持可见，整页截图会像参考图一样在首屏底部结束。
-
----
-
-## 6. 已实现功能
-
-### Mock / Live 行为差异（同一套页面）
-
-| 能力 | Mock 构建 | Live 构建 |
-|---|---|---|
-| 首页书库展示 / 搜索 | `mock.ts` 本地过滤，420ms 模拟延迟 | 首页只从 `GET /api/library` 取已入库 EPUB；空搜索框不请求，只有输入关键词才走 `PluginRuntime.search` |
-| 详情 / 分卷 | 固定样例 | `GET /api/novels/:id`、`/volumes`，分卷 id 为 `${bookId}#v${index}` |
-| 创建下载 | 写入前端 store，假进度 | `POST /api/tasks`，`liveStore` 每 2s 轮询真实任务 |
-| 暂停 / 恢复 | 本地状态机 | 隐藏：插件只提供 cancel / retry，不伪造暂停能力 |
-| 书库校验 / 删除 | 纯前端动画 / 本地移除 | `POST .../verify` 真实 SHA-256；删除需服务端 `LN_BFF_ALLOW_DELETE=true` |
-| 书源健康 | 4 条 Mock 指标 | 真实 registry；延迟/成功率为 `null`，不伪造探测结果 |
-| 统计图表 | 示例数据 | 真实任务状态分布 + 书库来源分布；插件无按日聚合时不画伪时间序列 |
-| 设置 | 内存态 | 展示 `/api/status` 运行信息、Dart 状态、`features`，可写入 X-LN-Token |
-| 顶栏标识 | 「交互原型 · 非真实数据」 | 「实时数据」 |
-
-### Dashboard
-- 页面导航、搜索提交（跳转搜索页并带上 `q`）、四个入口卡片跳转
-- 精选卡点击进入详情；最近入库行跳转书库；右栏「查看全部」跳转任务页
-- 下载任务进度实时推进（Mock ticker / Live 2s 轮询）、书库概览统计、最近活动、通知下拉
-
-### 小说搜索 `/search`
-- 关键词输入 / 回车 / 热门词填入、URL `?q=` 双向同步
-- 书源筛选（全部 / Bilinovel / 示例源 / 本地索引）、状态分段筛选
-- 加载骨架屏、结果计数、降级书源提示、空结果态与重置
-- 卡片点击打开详情弹窗（封面 / 标签 / 简介 / 快捷分卷 / 进入完整详情）
-
-### 小说详情 `/novel/:id`
-- 渐变 Hero（封面、状态、作者、评分、更新时间、标签、简介）
-- 分卷多选 / 全选、已选计数、合并为单一 EPUB、添加章节标题开关
-- 创建下载任务写入任务队列并提示，跳转下载任务页；Live 下真实调用 `/api/tasks`
-- 书源信息与接口说明（按 Mock / Live 模式显示不同文案）
-
-### 下载任务 `/tasks`
-- 6 个状态页签 + 实时计数；任务卡（封面、章节进度、速度、百分比、进度条）
-- 取消（二次确认）/ 重试 / 任务详情；暂停/恢复仅 Mock 显示，Live 下隐藏
-- 2.6s Mock 推进 / Live 轮询、Toast 反馈、数据模式声明
-
-### 我的书库 `/library`
-- 网格 / 表格双视图切换；搜索、完整性筛选、排序、文件数统计
-- 校验文件、删除（二次确认）、详情弹窗、导入 EPUB（占位提示）；Live 下校验/删除走真实接口，服务端未开启删除时明确报 `DELETE_DISABLED`
-- 4 个统计块（文件数 / 样例 / 通过校验 / 占用空间）
-
-### 书源状态 `/sources`
-- Mock：4 条演示指标；Live：真实 `SourceRegistry`，延迟/成功率标记为不可用，不做假探测
-- 启停开关（仅本地状态）、测试连接（占位）、诊断日志弹窗、能力矩阵
-- 明确标注「只读诊断 / 配置来自运行时」
-
-### 统计分析 `/stats`
-- 4 个指标卡、书源分布、真实入库作品；Mock 下另有演示用近 7 天柱状图
-- Live 分支不绘制按日下载趋势（插件无聚合数据），全部标注口径
-
-### 自动追更 `/auto-update`
-- 顶部黄色「尚未实现 / Roadmap」提示，规则与开关全部禁用
-- 能力清单逐项标注「未实现」；空状态说明后端调度器落地后才有数据
-
-### 系统设置 `/settings`
-- 接口地址、轮询间隔、并发下载、`/api/status` 只读运行信息、Dart 状态、`features`
-- X-LN-Token 输入（localStorage）、清空缓存（确认，同时移除 token）
-- 下载与打包默认项、动效开关、主题占位；未持久化项标注「未持久化 / 待接入」
-
-### 通用交互
-- Toast 通知（右上堆叠、4.2s 自动消失、可关闭）
-- Modal（遮罩点击 / ESC 关闭 / 滚动锁定）
-- 响应式：≥1280 两栏、768–1279 单栏重排、<768 抽屉导航 + 2 列封面 + 表格卡片化
-- 键盘可达：导航、卡片（Enter/Space）、弹窗 ESC
-
----
-
-## 7. Mock 与 Live 能力清单
-
-同一套 UI 通过 `VITE_API_MODE` 切换数据层；页面不直接依赖任一模式。
-
-| 功能 | Mock 构建 | Live 构建（BFF） |
-| --- | --- | --- |
-| 小说搜索 | 本地样例按关键词/书源/状态过滤，420ms 模拟延迟 | `GET /api/novels?query=&sources=&status=`，真实 `PluginRuntime` 搜索 |
-| 首页书库展示 | 固定样例（Mock 模式保留「为你精选」） | `GET /api/library`，仅展示已正式入库的 EPUB；空库显示引导，不回退样例 |
-| 小说详情 | Mock 字段 | `GET /api/novels/:id`，`rating=0` 表示无评分，不编造 |
-| 分卷 / 章节 | Mock 8 卷 × 8 章 | `GET /api/novels/:id/volumes`，id 编码 `${bookId}#v${index}` |
-| 创建下载 | 写入前端 store + 假进度 | `POST /api/tasks`，真实 Dart 打包 |
-| 任务列表 | 2.6s ticker 推进 running | `GET /api/tasks`，2s 轮询真实状态 |
-| 取消 / 重试 | 本地状态机 | `POST /api/tasks/:id/cancel` / `/retry` |
-| 暂停 / 恢复 | 本地状态机 | 隐藏：插件无此能力，不伪造 |
-| EPUB 书库 | 5 条本地样例 | `GET /api/library?query=`，真实索引 |
-| 统计 | 示例数据 | `GET /api/library/stats` + 真实任务状态 |
-| 校验文件 | Toast 动画 | `POST /api/library/:id/verify`，真实 SHA-256 |
-| 删除文件 | 本地移除 | `DELETE /api/library/:id`，需 `LN_BFF_ALLOW_DELETE=true`，默认 403 |
-| 导入 EPUB | UI 占位 | 仍需后端上传接口，未实现 |
-| 书源健康 | 4 条 Mock 指标 | `GET /api/sources` 真实 registry；延迟/成功率 `null`，不探测、不编造 |
-| 连接测试 | 模拟延迟 Toast | 仍为占位：BFF 未提供主动探测端点 |
-| 自动追更 | 完整占位、全部禁用 | 未实现（无调度器），保持 Roadmap 标注 |
-| 统计图表 | 伪时间序列仅供视觉演示 | live 分支不绘制按日趋势（插件无聚合数据） |
-| 设置持久化 | 仅组件内存 | `/api/status` 只读运行信息 + token localStorage；配置写回未实现 |
-| 主题切换 | 占位 | 占位 |
-
-**Mock 可辨识措施**：顶栏常驻「交互原型 · 非真实数据」；页面级 `演示数据 / Mock / 示例数据` 标签；搜索页、任务页、书库页、统计页、设置页底部均有说明文案；`mock.ts` 每条数据带 `isMock: true`。Live 构建顶栏为「实时数据」，并在 API 返回 `mocked:false / isMock:false`，不会把演示数据混入真实结果。
-
----
-
-## 8. Live 模式与 BFF
-
-### 8.1 架构
-
-```
-React (web/dist)  ──HTTP──>  server/serve.mjs  ──直接调用──>  PluginRuntime (dist/runtime.js)
-                                  │                              │
-                                  ├─ /api/* 路由 + DTO 映射        ├─ SearchEngine / NovelService
-                                  ├─ web/dist 静态托管 + SPA      ├─ TaskManager / Library
-                                  └─ token / CORS / 限流          └─ DartBridge → bnp_headless
-```
-
-- BFF 是零额外依赖的 Node HTTP 进程，不启动 DSH CLI、不调用 LLM、不复制业务逻辑。
-- 单进程同源托管前端与 API，默认 `127.0.0.1:5273`；容器内 `0.0.0.0:8080`。
-- `web/src/services/runtime.ts` 负责 `VITE_API_MODE`、`VITE_API_BASE`（默认 `/api`）、token 读取与 `fetch` 封装。
-- `novelApi.ts` 同时保留 `mockApi` 与 `liveApi`；`taskStore.ts` 同时保留 `mockStore` 与 `liveStore`。
-
-### 8.2 API 契约
+账号登录启用时，浏览器使用会话 Cookie。独立脚本可使用配置过的 `LN_BFF_TOKEN`。DSH 只读密钥有单独的 GET 接口范围。
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
-| GET | `/api/health` | `{ok, dart, uptime}`；容器 healthcheck |
+| GET | `/api/auth/status` | 初始化与登录状态，Compose 健康检查使用 |
+| POST | `/api/auth/setup` · `/api/auth/login` · `/api/auth/logout` | 创建首个管理员、登录或撤销会话 |
+| GET / POST | `/api/settings/download-folders` | 查询或保存两类文件的目标目录 |
+| GET | `/api/settings/download-folders/browse` | 浏览允许的子目录 |
+| GET / POST | `/api/settings/integrations` | 管理 Komga 配置与 DSH 只读密钥 |
+
+### 轻小说接口
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| GET | `/api/health` | `{ok, dart, uptime}` |
 | GET | `/api/status` | 运行时、书源、Dart runner basename、书库统计、`features` |
 | GET | `/api/novels?query=&sources=&status=&limit=` | 空 query = 精选（本地索引 + 离线源，不触网）；有 query 才搜索 |
 | GET | `/api/novels/:id` | 详情；Dart 可用时带分卷，失败回退索引 |
@@ -307,75 +95,14 @@ React (web/dist)  ──HTTP──>  server/serve.mjs  ──直接调用──>
 
 错误体统一为 `{ "error": { "code": "...", "message": "..." } }`；请求体上限 64KB（超出 413 `BODY_TOO_LARGE`）；未知路由 404 `NOT_FOUND`。
 
-### 8.3 环境变量
+### 其他接口
 
-| 变量 | 默认 | 说明 |
-| --- | --- | --- |
-| `LN_BFF_HOST` / `LN_BFF_PORT` | `127.0.0.1` / `5273` | 监听地址 / 端口 |
-| `LN_WEB_DIST` | `<repo>/web/dist` | 前端产物 |
-| `LN_BFF_DATA_DIR` | `~/.local/share/dsh-plugin-lightnovel-web` | 数据/任务/日志/索引 |
-| `LN_BFF_LIBRARY_DIR` | `<data>/library` | EPUB 库 |
-| `LN_BFF_TOKEN` | 空 | 启用后 `/api/*` 需 `X-LN-Token` 或 `Authorization: Bearer` |
-| `LN_BFF_ALLOW_DELETE` | `false` | 开启 DELETE |
-| `LN_BFF_CORS_ORIGIN` | 空 | 跨域开发允许源 |
-| `LN_DART_BINARY` / `LN_DART_SDK` | 自动探测 | 下载/详情/分卷的 Dart 运行方式 |
-| `LN_FIXTURES_DIR` | 包内 `test/fixtures` | 离线源根目录 |
-| `LN_ENABLED_SOURCES` | `bilinovel,fixture` | 启用书源 |
-| `LN_OFFLINE_ONLY` | `false` | 仅离线 fixture |
-| `LN_RESPECT_ROBOTS` | `true` | 保持开启，无绕过开关 |
+- [Suwayomi 漫画接口](../docs/MANGA.md#bff-接口)
+- [Komga 书库接口](../docs/KOMGA.md#接口)
+- [漫画归档与 Docker 进度接口](../docs/MANGA-VOLUME-CBZ.md)
 
-### 8.4 Token 与前端
+## 截图与开发
 
-1. BFF 启动时设 `LN_BFF_TOKEN=<随机长串>`（不要写进仓库或 compose 文件）。
-2. 打开「系统设置」填入同一 token；只存浏览器 `localStorage`，不写入 bundle。
-3. 之后每个请求自动带 `X-LN-Token`；直接访问 `/api/*` 无 token 返回 401 `UNAUTHORIZED`。
-4. 清缓存会移除 token；容器 healthcheck 会读取同一环境变量，因此 token 开启后仍健康。
+[桌面书库](../docs/images/studio-library.jpg) · [手机漫画详情](../docs/images/studio-manga-mobile.jpg) · [开发和验证](../docs/README.md#开发和验证)
 
-### 8.5 合规边界
-
-- 首页与书库只展示已正式入库的 EPUB；空搜索框不列索引书，只有输入关键词才发起搜索。
-- 在线书源遵守 robots.txt、Crawl-delay 与同主机 4s 限速；不携带 Cookie/Authorization，不绕过登录、付费或 Cloudflare。
-- 公开源无可用关键词端点时返回 `degradedSources`，**不伪造命中**；评分/延迟/成功率没有就显示 `0` / `null` / `—`。
-- 删除默认关闭；token 默认关闭；受限书源默认禁用。
-- 所有库路径经 `safeResolve`，静态路径拒绝 `..` / 编码穿越；API 请求体上限 64KB。
-
-### 8.6 部署
-
-- 通用容器：[`../docker-compose.web.yml`](../docker-compose.web.yml)（Node 24、5273:8080、只读挂载、healthcheck、外部网络）。
-- NAS 细节：[`../docs/DEPLOY-NAS.md`](../docs/DEPLOY-NAS.md) 的 Web 管理台章节。
-- 端到端验证：仓库根 `npm run verify:web`（49 项断言，隔离数据目录）。
-
----
-
-## 9. 验证记录
-
-| 项目 | 结果 |
-| --- | --- |
-| `npm run typecheck` | 通过（web `tsc -b --noEmit`；仓库根 `tsc --noEmit`） |
-| Mock 构建 | 通过（Vite 生产构建，JS 358.63KB / gzip 107KB，CSS 59.50KB） |
-| Live 构建 | 通过（`VITE_API_MODE=live`，JS 358.65KB / gzip 107KB，CSS 59.50KB） |
-| `npm run verify:web` | **49/49**：health/status/搜索/详情/分卷/建任务/轮询/书库/EPUB ZIP/mimetype/sha256/verify/413/404/405/路径穿越/静态托管/SPA/token/DELETE |
-| 插件回归 | `npm run build`、`npm run typecheck`、`npm test`（88/88）、`npm run test:dart` 全绿 |
-| 无头浏览器 | Puppeteer + Chrome：7 个 live 路由 + 390×844 移动端，0 console error / pageerror / requestfailed，0 横向溢出 |
-| 视觉基准 | 1600×1050 视口整页 1398px，与参考图 1405px 高度基本一致；关键区块坐标见 COMPARISON.md |
-| 交互回归 | 导航切换、搜索提交与空态、书源筛选、详情弹窗开关、全选分卷、创建任务、取消确认、任务详情、书库视图切换/筛选、通知下拉、移动端抽屉跳转 均通过 |
-| 响应式 | 1440×900、1920×1080、768×1024、390×844 均无横向溢出；表格在 <640px 隐藏表头并改为两行卡片式 |
-
----
-
-## 10. 已知限制
-
-- **Mock 构建**没有后端，刷新后任务、书库、设置等演示状态会重置；这是纯静态原型的预期行为。
-- **Live 构建**依赖 BFF 与 Dart：Dart 不可用时详情可回退索引，但下载会明确报 `DART_UNAVAILABLE`，不会伪造成功。暂停/恢复在 live 下隐藏，因为插件只支持取消/重试。
-- 自动追更、导入 EPUB、主题切换、书源启停持久化仍是明确的 UI 占位，**未伪造成可用功能**；BFF 也未提供对应接口。
-- Token 只存浏览器 `localStorage`；换浏览器需重新填写。BFF 的配置写回、按日统计与主动书源探测尚未实现。
-- 插画与封面为原创 SVG；若需与设计稿逐像素一致的位图素材，可在 `public/images/` 放置授权素材并替换 `CoverArt` 内的 SVG。
-- 中文排版依赖系统字体，不同平台字宽会有轻微差异。
-
----
-
-## 11. 素材与许可
-
-- 界面插画、8 套小说封面、favicon 均为本项目原创 SVG，无第三方版权素材。
-- 字体：Inter（SIL Open Font License），已本地化到 `public/fonts/`。
-- 图标：Lucide（ISC License）。
+早期设计的截图和排版对照仍保存在 [web/docs](docs/COMPARISON.md)。

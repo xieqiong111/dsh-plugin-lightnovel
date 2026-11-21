@@ -1,6 +1,8 @@
-import { copyFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { constants } from 'node:fs'
+import { copyFile, lstat, mkdir, rename, realpath, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
+import { folderWithin, readDownloadFolders } from './download-folders.js'
 import { verifyEpub } from './integrity.js'
 import type { LibraryEntry, LibraryIndexFile, TaskArtifact } from '../types.js'
 import { readJson } from '../util/json.js'
@@ -12,8 +14,25 @@ export class Library {
   private entries = new Map<string, LibraryEntry>()
   private loaded = false
   private chain: Promise<void> = Promise.resolve()
+  private additions: Promise<unknown> = Promise.resolve()
 
-  constructor(private readonly libraryDir: string, private readonly logger: Logger) {}
+  constructor(private readonly libraryDir: string, private readonly logger: Logger,
+    private readonly storage?: { root: string; settingsFile: string }) {}
+
+  private async root(folder: string | undefined): Promise<string> {
+    if (folder === undefined) return this.libraryDir
+    if (!this.storage?.root) throw new Error('Novel storage mount is unavailable')
+    return folderWithin(this.storage.root, folder)
+  }
+
+  async filePath(entry: LibraryEntry): Promise<string> {
+    const root = await this.root(entry.storageFolder)
+    const file = safeResolve(root, entry.relativePath)
+    if (entry.storageFolder !== undefined && (await realpath(file)) !== file) {
+      throw new Error('Novel archive contains a symbolic link')
+    }
+    return file
+  }
 
   private get indexPath(): string {
     return safeResolve(this.libraryDir, 'index.json')
@@ -32,7 +51,7 @@ export class Library {
     let duplicates = 0
     for (const entry of file.entries ?? []) {
       if (!entry || typeof entry.id !== 'string') continue
-      const key = typeof entry.relativePath === 'string' ? entry.relativePath : entry.id
+      const key = JSON.stringify([entry.storageFolder ?? null, entry.relativePath ?? entry.id])
       const previous = byPath.get(key)
       if (!previous) {
         byPath.set(key, entry)
@@ -72,7 +91,7 @@ export class Library {
   }
 
   /** Copy one verified artefact into the library. Returns null on integrity failure. */
-  async add(input: {
+  add(input: {
     artifact: TaskArtifact
     title: string
     author: string
@@ -80,15 +99,34 @@ export class Library {
     bookId: string
     taskId: string
   }): Promise<LibraryEntry | null> {
+    const result = this.additions.then(() => this.ingest(input))
+    this.additions = result.catch(() => undefined)
+    return result
+  }
+
+  private async ingest(input: Parameters<Library['add']>[0]): Promise<LibraryEntry | null> {
     await this.load()
     const integrity = await verifyEpub(input.artifact.path)
     const base = sanitizeFileName(input.title, 'novel')
     const volume = sanitizeFileName(input.artifact.volumeNames[0] ?? base, `${randomUUID().slice(0, 8)}.epub`)
     const relativePath = path.join(base, volume.endsWith('.epub') ? volume : `${volume}.epub`)
-    const destination = safeResolve(this.libraryDir, relativePath)
-    await mkdir(path.dirname(destination), { recursive: true })
-    await copyFile(input.artifact.path, destination)
-    await writeFile(`${destination}.sha256`, `${integrity.sha256}  ${path.basename(destination)}\n`, 'utf8')
+    const storageFolder = this.storage?.root
+      ? (await readDownloadFolders(this.storage.settingsFile)).novelFolder ?? undefined : undefined
+    const root = await this.root(storageFolder)
+    const destination = safeResolve(root, relativePath)
+    const series = path.dirname(destination)
+    await mkdir(series, { recursive: true })
+    if (storageFolder !== undefined && !(await lstat(series)).isDirectory()) throw new Error('Invalid novel series directory')
+    const staging = `${destination}.${randomUUID()}.tmp`
+    try {
+      await copyFile(input.artifact.path, staging, constants.COPYFILE_EXCL)
+      await writeFile(`${staging}.sha256`, `${integrity.sha256}  ${path.basename(destination)}\n`, { flag: 'wx' })
+      await rename(staging, destination)
+      await rename(`${staging}.sha256`, `${destination}.sha256`)
+    } finally {
+      await rm(staging, { force: true })
+      await rm(`${staging}.sha256`, { force: true })
+    }
 
     const fileStat = await stat(destination)
     const entry: LibraryEntry = {
@@ -100,6 +138,7 @@ export class Library {
       volumeNames: input.artifact.volumeNames,
       chapterCount: integrity.chapters,
       relativePath,
+      ...(storageFolder !== undefined ? { storageFolder } : {}),
       bytes: fileStat.size,
       sha256: integrity.sha256,
       createdAt: new Date().toISOString(),
@@ -111,7 +150,7 @@ export class Library {
     // later verify() fail with a false corruption report.
     let replaced = 0
     for (const [id, existing] of this.entries) {
-      if (existing.relativePath === relativePath) {
+      if (existing.relativePath === relativePath && existing.storageFolder === storageFolder) {
         this.entries.delete(id)
         replaced++
       }
@@ -134,7 +173,7 @@ export class Library {
     const results: Array<{ id: string; ok: boolean; problems: string[]; sha256Changed: boolean }> = []
     for (const entry of targets) {
       try {
-        const absolute = safeResolve(this.libraryDir, entry.relativePath)
+        const absolute = await this.filePath(entry)
         const result = await verifyEpub(absolute)
         const sha256Changed = result.sha256 !== entry.sha256
         entry.integrity = result.ok && !sha256Changed ? 'ok' : 'failed'
@@ -152,7 +191,9 @@ export class Library {
     const out: string[] = []
     for (const entry of this.entries.values()) {
       try {
-        out.push((await readFile(safeResolve(this.libraryDir, `${entry.relativePath}.sha256`), 'utf8')).trim())
+        const sidecar = `${await this.filePath(entry)}.sha256`
+        if (entry.storageFolder !== undefined && !(await lstat(sidecar)).isFile()) continue
+        out.push((await readFile(sidecar, 'utf8')).trim())
       } catch { /* no sidecar for older entries */ }
     }
     return out
@@ -161,8 +202,13 @@ export class Library {
   async remove(id: string): Promise<boolean> {
     const entry = this.entries.get(id)
     if (!entry) return false
-    await rm(safeResolve(this.libraryDir, entry.relativePath), { force: true })
-    await rm(safeResolve(this.libraryDir, `${entry.relativePath}.sha256`), { force: true })
+    const root = await this.root(entry.storageFolder)
+    const file = safeResolve(root, entry.relativePath)
+    if (entry.storageFolder !== undefined && await realpath(path.dirname(file)) !== path.dirname(file)) {
+      throw new Error('Novel archive contains a symbolic link')
+    }
+    await rm(file, { force: true })
+    await rm(`${file}.sha256`, { force: true })
     this.entries.delete(id)
     await this.persist()
     return true

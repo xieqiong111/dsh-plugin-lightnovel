@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url'
 import { resolveConfig } from '../dist/config.js'
 import { PluginRuntime } from '../dist/runtime.js'
 import { createLogger } from '../dist/util/logger.js'
+import { readSuwayomiConfig } from './suwayomi-client.mjs'
+import { readKomgaConfig } from './komga-client.mjs'
 
 export const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 
@@ -48,6 +50,8 @@ export function readSettings(env = process.env) {
   const config = {
     dataDir,
     libraryDir,
+    novelStorageRoot: env.LN_NOVEL_STORAGE_ROOT || '',
+    downloadFoldersFile: env.LN_DOWNLOAD_FOLDERS_FILE || '',
     dartBinary: '',
     dartProjectDir: '',
     fixturesDir: env.LN_FIXTURES_DIR || '',
@@ -71,11 +75,24 @@ export function readSettings(env = process.env) {
     extraTraditionalMap: env.LN_EXTRA_TRADITIONAL_MAP || '',
   }
 
+  const suwayomi = readSuwayomiConfig(env)
+  const komga = readKomgaConfig(env)
   return {
+    mangaStorageRoot: env.LN_MANGA_STORAGE_ROOT || '',
+    novelStorageLabel: env.LN_NOVEL_STORAGE_LABEL || '',
+    mangaStorageLabel: env.LN_MANGA_STORAGE_LABEL || '',
+    mangaCredentialsConfigured: Boolean(suwayomi.username || suwayomi.password),
+    komgaConfig: komga,
+    komgaAllowedUrls: asList(env.LN_KOMGA_ALLOWED_URLS, []),
+    komgaCredentialsConfigured: Boolean(komga.apiKey || komga.username || komga.password),
     host: env.LN_BFF_HOST || '127.0.0.1',
     port: asInt(env.LN_BFF_PORT, 5273, 1, 65535),
     webDist: env.LN_WEB_DIST || path.join(packageRoot, 'web', 'dist'),
     token: env.LN_BFF_TOKEN || '',
+    accountAuth: asBool(env.LN_STUDIO_ACCOUNTS, false),
+    setupCode: env.LN_STUDIO_SETUP_CODE || '',
+    secureCookie: asBool(env.LN_STUDIO_SECURE_COOKIE, false),
+    webOrigin: env.LN_STUDIO_WEB_ORIGIN || '',
     corsOrigin: env.LN_BFF_CORS_ORIGIN || '',
     allowDelete: asBool(env.LN_BFF_ALLOW_DELETE, false),
     echoLogs: asBool(env.LN_LOG_ECHO, false),

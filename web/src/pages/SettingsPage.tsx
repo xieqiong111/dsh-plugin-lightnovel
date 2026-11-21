@@ -1,3 +1,6 @@
+import { IntegrationSettings } from '@/components/layout/IntegrationSettings'
+import { DownloadFolders } from '@/components/layout/DownloadFolders'
+import { MangaHealthPanel } from '@/components/manga/MangaHealthPanel'
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { Database, Info, Palette, Save, Server, ShieldCheck, SlidersHorizontal, Trash2 } from 'lucide-react'
@@ -5,14 +8,18 @@ import { Badge, Button, Card, SectionTitle } from '@/components/common/ui'
 import { Modal } from '@/components/common/Modal'
 import { PageHeader } from '@/components/common/PageHeader'
 import { useToast } from '@/components/common/Toast'
+import { useAsync } from '@/hooks/useAsync'
 import { novelApi } from '@/services/novelApi'
-import { API_BASE, DEMO, IS_LIVE, getApiToken, setApiToken, type RuntimeStatus } from '@/services/runtime'
+import { API_BASE, DEMO, IS_LIVE, apiFetch, getApiToken, setApiToken, type RuntimeStatus } from '@/services/runtime'
 import { cn } from '@/services/utils'
 
 export function SettingsPage() {
   const { toast } = useToast()
   const [apiBase, setApiBase] = useState(IS_LIVE ? `${window.location.origin}${API_BASE}` : 'http://127.0.0.1:8080/api')
   const [token, setToken] = useState(getApiToken())
+  const login = useAsync(() => IS_LIVE ? apiFetch<{ enabled: boolean }>('/auth/status') : Promise.resolve({ enabled: false }), [])
+  const accountAuth = login.data?.enabled === true
+  const legacyToken = IS_LIVE && login.data?.enabled === false
   const [status, setStatus] = useState<RuntimeStatus | null>(null)
   const [poll, setPoll] = useState('2000')
   const [concurrency, setConcurrency] = useState('2')
@@ -42,13 +49,13 @@ export function SettingsPage() {
         title="系统设置"
         description={
           IS_LIVE
-            ? '运行信息读取自插件运行时（GET /api/status）。访问令牌仅保存在本浏览器 localStorage；服务端配置需通过环境变量修改，本页不提供写入接口。'
+            ? accountAuth ? '查看服务连接与运行信息。' : '运行信息读取自插件运行时（GET /api/status）。访问令牌仅保存在本浏览器。'
             : '前端演示用配置面板。除界面偏好外，所有与后端相关的字段都不会真正保存或生效。'
         }
         actions={
           <>
             <Badge tone={IS_LIVE ? 'green' : 'amber'} className="h-7 px-3">{IS_LIVE ? DEMO.label : '未持久化'}</Badge>
-            <Button
+            {(!IS_LIVE || legacyToken) && <Button
               variant="primary"
               size="sm"
               icon={<Save className="h-3.5 w-3.5" />}
@@ -62,17 +69,19 @@ export function SettingsPage() {
               }}
             >
               保存设置
-            </Button>
+            </Button>}
           </>
         }
       />
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
         <div className="space-y-5">
+          {IS_LIVE && <DownloadFolders />}
+          {accountAuth && <IntegrationSettings />}
           <Card className="p-5">
             <div className="flex items-center justify-between">
               <SectionTitle title="连接与接口" className="[&_h2]:text-[18px]" />
-              <Badge tone={IS_LIVE ? 'green' : 'gray'}><Server className="h-3 w-3" /> {IS_LIVE ? 'BFF 已连接' : '待接入'}</Badge>
+              <Badge tone={IS_LIVE ? 'green' : 'gray'}><Server className="h-3 w-3" /> {IS_LIVE ? (status?.ok ? 'BFF 已连接' : '待验证') : '演示模式'}</Badge>
             </div>
             <div className="mt-4 space-y-3.5">
               <Field label="API 基础地址" hint={IS_LIVE ? '构建时由 VITE_API_BASE 决定，此处只读' : '建议仅在内网暴露'}>
@@ -83,7 +92,7 @@ export function SettingsPage() {
                   className="h-10 w-full rounded-[10px] border border-[#EFEDF6] bg-[#FBFAFE] px-3 font-mono text-[11px] text-[#3F4058] focus:border-[#C4B5FB] focus:bg-white focus:outline-none"
                 />
               </Field>
-              {IS_LIVE && (
+              {legacyToken && (
                 <Field label="访问令牌 X-LN-Token" hint="留空表示服务端未启用鉴权">
                   <input
                     type="password"
@@ -103,7 +112,7 @@ export function SettingsPage() {
                   <Select value={concurrency} onChange={setConcurrency} options={[['1', '1 个'], ['2', '2 个'], ['3', '3 个'], ['5', '5 个']]} />
                 </Field>
               </div>
-              <Field label="会话与认证" hint="生产环境应启用 CSRF 防护与请求体限制">
+              <Field label="会话与认证" hint={accountAuth ? '下次登录时可选择此设备的免登录时长' : undefined}>
                 <div className="flex h-10 items-center justify-between rounded-[10px] border border-[#EFEDF6] bg-[#FBFAFE] px-3 text-[11px] text-[#8B8BA0]">
                   <span className="flex items-center gap-1.5">
                     <ShieldCheck className="h-3.5 w-3.5 text-[#10B981]" />
@@ -180,11 +189,12 @@ export function SettingsPage() {
         </div>
 
         <div className="space-y-5">
+          <MangaHealthPanel />
           <Card className="p-5">
             <SectionTitle title="运行信息" className="[&_h2]:text-[17px]" />
             <div className="mt-3.5 space-y-2.5 text-[10px]">
               {[
-                ['前端版本', 'Lightnovel Studio 1.0.0'],
+                ['前端版本', 'Novel & Manga Library 1.0.0'],
                 ['插件版本', 'dsh-plugin-lightnovel 1.0.0'],
                 ['运行模式', IS_LIVE ? 'Live · PluginRuntime / BFF' : 'Mock · 前端原型'],
                 ['数据接口', IS_LIVE ? `${API_BASE}/*` : '未接入'],
@@ -192,7 +202,7 @@ export function SettingsPage() {
                 ['搜索模式', IS_LIVE ? status?.searchMode ?? '读取中…' : '本地样例过滤'],
                 ['robots / 限速', IS_LIVE ? (status?.respectRobots ? '已启用' : '未启用') : '不适用'],
                 ['离线限定', IS_LIVE ? (status?.offlineOnly ? '是（仅 fixture）' : '否') : '不适用'],
-                ['鉴权', IS_LIVE ? (status?.features.token ? '已启用' : '未启用') : '不适用'],
+                ['鉴权', IS_LIVE ? (accountAuth || status?.features.token ? '已启用' : '未启用') : '不适用'],
                 ['构建工具', 'Vite + React 18'],
               ].map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between gap-3">
@@ -208,10 +218,7 @@ export function SettingsPage() {
             <p className="mt-3 text-[10px] leading-[1.9] text-[#8B8BA0]">
               {IS_LIVE ? (
                 <>
-                  HTTP 服务由 <span className="font-mono text-[9px] text-[#6C4AD9]">server/serve.mjs</span> 提供，
-                  把 <span className="font-mono text-[9px] text-[#6C4AD9]">/api/*</span> 直接映射到插件
-                  <span className="mx-1 rounded bg-[#F1EDFE] px-1.5 py-0.5 text-[#6C4AD9]">PluginRuntime</span>
-                  ，不复制业务逻辑。端点清单与环境变量见仓库 README 与 docs/DEPLOY-NAS.md。
+                  BFF 将轻小说请求交给 PluginRuntime，将漫画请求转发给 Suwayomi。Suwayomi 凭据由服务端环境变量管理。
                 </>
               ) : (
                 <>
@@ -223,7 +230,7 @@ export function SettingsPage() {
             </p>
             <div className="mt-3 flex items-start gap-1.5 rounded-[8px] bg-[#FBFAFE] px-2.5 py-2 text-[9.5px] leading-relaxed text-[#A2A2B6]">
               <Info className="mt-[1px] h-3 w-3 shrink-0 text-[#C4B5FB]" />
-              自动追更、书库导入、真实配置持久化尚未实现，均以禁用或占位形式呈现。
+              轻小说自动追更、EPUB 导入与设置持久化仍为占位。
             </div>
           </Card>
 

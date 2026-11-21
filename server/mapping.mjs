@@ -129,6 +129,7 @@ export function toLibraryItem(entry) {
     size: formatBytes(entry.bytes),
     integrity: entry.integrity === 'ok' ? 'passed' : entry.integrity === 'failed' ? 'failed' : 'pending',
     addedAt: relativeTime(entry.createdAt),
+    createdAt: entry.createdAt,
     tags: [entry.sourceId, `${entry.chapterCount} 章`].filter(Boolean),
   }
 }

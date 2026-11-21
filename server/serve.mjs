@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Lightnovel Studio web console server.
+ * Novel & Manga Library web console server.
  *
  *   node server/serve.mjs
  *
@@ -21,12 +21,16 @@
  *   LN_ENABLED_SOURCES=...       comma separated source ids
  *   LN_DART_BINARY / LN_DART_SDK / LN_DART_PROJECT_DIR  Dart headless runner
  *   LN_FIXTURES_DIR=<dir>        offline fixture root
+ *   SUWAYOMI_URL=<origin>        independent manga backend (optional)
  */
 import { createReadStream } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import http from 'node:http'
 import path from 'node:path'
 import { createApi } from './api.mjs'
+import { createSuwayomiClient } from './suwayomi-client.mjs'
+import { createKomgaClient } from './komga-client.mjs'
+import { loadIntegrations } from './integrations.mjs'
 import { boot, readSettings } from './runtime.mjs'
 
 const MIME = {
@@ -49,7 +53,7 @@ const MIME = {
 }
 
 const FALLBACK_PAGE = `<!doctype html>
-<html lang="zh-CN"><meta charset="utf-8"><title>Lightnovel Studio</title>
+<html lang="zh-CN"><meta charset="utf-8"><title>Novel &amp; Manga Library</title>
 <body style="font:14px/1.8 system-ui,sans-serif;max-width:680px;margin:64px auto;color:#33344B">
 <h1>前端产物尚未构建</h1>
 <p>API 服务已就绪，但没有找到 <code>web/dist/index.html</code>。</p>
@@ -119,10 +123,17 @@ async function serveStatic(req, res, url, webDist) {
 
 const settings = readSettings()
 const { runtime, logger } = await boot(settings)
-const handleApi = createApi(runtime, settings, logger)
+const mangaClient = runtime.suwayomi ?? createSuwayomiClient()
+const komgaClient = runtime.komga ?? createKomgaClient()
+if (settings.accountAuth) {
+  const { openStudioAuth } = await import('./auth.mjs')
+  settings.auth = openStudioAuth(settings)
+}
+settings.integrations = await loadIntegrations(settings)
+const handleApi = createApi(runtime, settings, logger, mangaClient, komgaClient)
 
 const server = http.createServer((req, res) => {
-  const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`)
+  const url = new URL(req.url ?? '/', 'http://localhost')
   if (settings.corsOrigin) {
     res.setHeader('access-control-allow-origin', settings.corsOrigin)
     res.setHeader('access-control-allow-headers', 'content-type, x-ln-token, authorization')
@@ -162,6 +173,7 @@ async function shutdown(signal) {
   logger.info('webapi', 'shutdown', { signal })
   server.close()
   await runtime.dispose()
+  settings.auth?.close()
   process.exit(0)
 }
 process.on('SIGINT', () => void shutdown('SIGINT'))

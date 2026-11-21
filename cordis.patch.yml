@@ -11,6 +11,7 @@
         dartBinary: !!js process.env.LN_DART_BINARY ?? ''
         dartProjectDir: !!js process.env.LN_DART_PROJECT_DIR ?? ''
         fixturesDir: !!js process.env.LN_FIXTURES_DIR ?? ''
+        mangaConnectionFile: !!js process.env.LN_MANGA_CONNECTION_FILE ?? ''
         enabledSources: !!js (process.env.LN_ENABLED_SOURCES ?? 'bilinovel,fixture').split(',').map(s => s.trim()).filter(Boolean)
         requestIntervalMs: !!js Number(process.env.LN_REQUEST_INTERVAL_MS ?? 4000)
         maxConcurrentDownloads: !!js Number(process.env.LN_MAX_CONCURRENT_DOWNLOADS ?? 1)

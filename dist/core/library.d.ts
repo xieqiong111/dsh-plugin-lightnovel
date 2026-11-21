@@ -4,10 +4,17 @@ import type { Logger } from '../util/logger.js';
 export declare class Library {
     private readonly libraryDir;
     private readonly logger;
+    private readonly storage?;
     private entries;
     private loaded;
     private chain;
-    constructor(libraryDir: string, logger: Logger);
+    private additions;
+    constructor(libraryDir: string, logger: Logger, storage?: {
+        root: string;
+        settingsFile: string;
+    } | undefined);
+    private root;
+    filePath(entry: LibraryEntry): Promise<string>;
     private get indexPath();
     load(): Promise<void>;
     list(options?: {
@@ -31,6 +38,7 @@ export declare class Library {
         bookId: string;
         taskId: string;
     }): Promise<LibraryEntry | null>;
+    private ingest;
     /** Re-verify a single entry or the whole library. */
     verify(id?: string): Promise<Array<{
         id: string;

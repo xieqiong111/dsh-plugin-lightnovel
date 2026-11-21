@@ -301,6 +301,7 @@ export const library: LibraryItem[] = [
     size: '2.8 MB',
     integrity: 'passed',
     addedAt: '1 小时前',
+    createdAt: '2026-11-16T08:00:00.000Z',
     tags: ['治愈', '奇幻'],
   },
   {
@@ -316,6 +317,7 @@ export const library: LibraryItem[] = [
     size: '6.5 MB',
     integrity: 'passed',
     addedAt: '昨天',
+    createdAt: '2026-11-15T08:00:00.000Z',
     tags: ['异世界', '成长'],
   },
   {
@@ -331,6 +333,7 @@ export const library: LibraryItem[] = [
     size: '3.1 MB',
     integrity: 'passed',
     addedAt: '2 天前',
+    createdAt: '2026-11-14T08:00:00.000Z',
     tags: ['青春', '书信'],
   },
   {
@@ -346,6 +349,7 @@ export const library: LibraryItem[] = [
     size: '1.9 MB',
     integrity: 'pending',
     addedAt: '3 天前',
+    createdAt: '2026-11-13T08:00:00.000Z',
     tags: ['日常'],
   },
   {
@@ -361,6 +365,7 @@ export const library: LibraryItem[] = [
     size: '5.4 MB',
     integrity: 'failed',
     addedAt: '4 天前',
+    createdAt: '2026-11-12T08:00:00.000Z',
     tags: ['战争', '科幻'],
   },
 ]

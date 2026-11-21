@@ -64,6 +64,7 @@ export interface LibraryItem {
   size: string
   integrity: 'passed' | 'pending' | 'failed'
   addedAt: string
+  createdAt?: string
   tags: string[]
 }
 

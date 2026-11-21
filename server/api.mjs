@@ -10,8 +10,14 @@ import { stat } from 'node:fs/promises'
 import path from 'node:path'
 import { timingSafeEqual } from 'node:crypto'
 import { TaskManagerError } from '../dist/core/tasks.js'
+import { createSuwayomiClient } from './suwayomi-client.mjs'
+import { createDownloadFoldersApi } from './download-folders-api.mjs'
+import { createMangaApi } from './manga-api.mjs'
+import { createKomgaClient } from './komga-client.mjs'
+import { isDshReadRoute } from './integrations.mjs'
+import { createKomgaApi } from './komga-api.mjs'
 import { rank, resolveBook } from '../dist/search.js'
-import { assertSafePublicUrl, safeResolve } from '../dist/util/paths.js'
+import { assertSafePublicUrl } from '../dist/util/paths.js'
 import {
   toActivities,
   toLibraryItem,
@@ -98,7 +104,26 @@ function volumeSelector(ids, names) {
   return names.join(',')
 }
 
-export function createApi(runtime, settings, logger) {
+export function createApi(
+  runtime,
+  settings,
+  logger,
+  mangaClient = runtime.suwayomi ?? createSuwayomiClient(),
+  komgaClient = runtime.komga ?? createKomgaClient(),
+) {
+  const handleMangaApi = createMangaApi(mangaClient, logger, {
+    missingBffAuth: settings.mangaCredentialsConfigured && !settings.token && !settings.auth,
+  })
+  const currentKomga = () => settings.integrations?.client ?? komgaClient
+  const handleDownloadFolders = createDownloadFoldersApi(settings, currentKomga)
+  const handleKomgaApi = createKomgaApi({
+    status: () => currentKomga().status(),
+    libraries: () => currentKomga().libraries(),
+    series: (options) => currentKomga().series(options),
+    thumbnail: (id) => currentKomga().thumbnail(id),
+  }, logger, {
+    missingBffAuth: settings.komgaCredentialsConfigured && !settings.token && !settings.auth,
+  })
   const searchUrlConfigured = Boolean(
     process.env.LN_BILINOVEL_SEARCH_URL || process.env.LN_WENKU8_SEARCH_URL,
   )
@@ -247,7 +272,9 @@ export function createApi(runtime, settings, logger) {
   async function libraryFile(id, req, res) {
     const entry = runtime.library.get(id)
     if (!entry) throw new HttpError(404, 'FILE_NOT_FOUND', `Unknown library entry: ${id}`)
-    const absolute = safeResolve(runtime.config.libraryDir, entry.relativePath)
+    const absolute = await runtime.library.filePath(entry).catch(() => {
+      throw new HttpError(404, 'FILE_MISSING', 'EPUB file is missing from disk')
+    })
     const info = await stat(absolute).catch(() => {
       throw new HttpError(404, 'FILE_MISSING', 'EPUB file is missing from disk')
     })
@@ -271,10 +298,26 @@ export function createApi(runtime, settings, logger) {
   /** Returns true when the request was handled as /api/*. */
   return async function handle(req, res, url) {
     if (!url.pathname.startsWith('/api/')) return false
-    if (!tokenMatches(req, settings.token)) {
-      sendError(res, 401, 'UNAUTHORIZED', 'Missing or invalid X-LN-Token')
+    if (settings.auth && await settings.auth.handle(req, res, url)) return true
+    if (req.method === 'GET' && url.pathname === '/api/auth/status') {
+      sendJson(res, 200, { enabled: false })
       return true
     }
+    const dshAllowed = settings.integrations?.authorizeDsh(req) ?? false
+    if (dshAllowed && !isDshReadRoute(req.method, url.pathname)) {
+      sendError(res, 403, 'READ_ONLY_TOKEN', 'DSH 密钥仅可读取书库、连接和下载状态。')
+      return true
+    }
+    const tokenAllowed = (!settings.auth || Boolean(settings.token)) && tokenMatches(req, settings.token)
+    if (!dshAllowed && !tokenAllowed && !settings.auth?.sessionAllowed(req)) {
+      sendError(res, 401, 'UNAUTHORIZED', settings.auth ? '请先登录。' : 'Missing or invalid X-LN-Token')
+      return true
+    }
+
+    if (settings.integrations && await settings.integrations.handle(req, res, url, { sendJson, sendError, readBody })) return true
+    if (await handleDownloadFolders(req, res, url)) return true
+    if (await handleMangaApi(req, res, url)) return true
+    if (await handleKomgaApi(req, res, url)) return true
 
     const segments = url.pathname
       .split('/')

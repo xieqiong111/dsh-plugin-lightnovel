@@ -23,7 +23,7 @@ const workspaceLinks = [
   { to: '/search', label: '搜索发现', icon: Search },
   { to: '/library', label: '我的书库', icon: BookOpen },
   { to: '/tasks', label: '下载任务', icon: Download, badge: true },
-  { to: '/sources', label: '书源状态', icon: Globe2 },
+  { to: '/sources', label: '资源源管理', icon: Globe2 },
   { to: '/auto-update', label: '自动追更', icon: RefreshCw },
   { to: '/stats', label: '统计分析', icon: BarChart3 },
 ]
@@ -67,9 +67,9 @@ export function Sidebar({ mobileOpen, onClose }: { mobileOpen: boolean; onClose:
               <BookOpen className="h-[19px] w-[19px] text-white" strokeWidth={1.9} />
             </div>
             <div className="leading-tight">
-              <p className="text-[16px] font-bold tracking-[0.02em] text-white">轻小说管理中心</p>
-              <p className="mt-1 text-[8px] font-semibold uppercase tracking-[0.26em] text-[#9395BE]">
-                Lightnovel Studio
+              <p className="text-[14px] font-bold text-white">轻小说与漫画书库</p>
+              <p className="mt-1 text-[8px] font-semibold uppercase tracking-[0.15em] text-[#9395BE]">
+                Novel &amp; Manga Library
               </p>
             </div>
           </div>
@@ -186,7 +186,7 @@ function NavItem({
   }
 
   return (
-    <NavLink to={to} end={end} className={base} onClick={() => {}} aria-current={active ? 'page' : undefined}>
+    <NavLink to={to} end={end} className={base} aria-current={active ? 'page' : undefined}>
       {content}
     </NavLink>
   )

@@ -1,10 +1,10 @@
-# Lightnovel Studio web console — generic Docker Compose (Linux hosts).
+# Novel & Manga Library web console — generic Docker Compose (Linux hosts).
 #
 # This service is the BFF + static host in one process:
 #   node server/serve.mjs   ->   /api/*  +  web/dist
 #
-# It does NOT run the DSH agent loop. The plugin's six Cordis tools remain the
-# agent-facing surface; this console drives the same PluginRuntime over HTTP.
+# The WebUI calls the novel PluginRuntime and the shared Suwayomi client.
+# The agent runs independently through docker-compose.yml.
 #
 # Prerequisites on the host (all paths are relative to this repository root):
 #   1. node_modules      npm ci --omit=dev
@@ -18,7 +18,9 @@
 #                          --subnet 10.99.77.0/24 --gateway 10.99.77.1 \
 #                          dsh-lightnovel-net
 #
-# Then: docker compose -f docker-compose.web.yml up -d
+# Existing Suwayomi / novel only: docker compose -f docker-compose.web.yml up -d web
+# Managed Suwayomi: set SUWAYOMI_URL=http://suwayomi:4567, then run
+#   docker compose -f docker-compose.web.yml --profile manga up -d
 #
 # All values can be overridden from .env or the shell. Never commit a real
 # token, host name or absolute private path here.
@@ -43,12 +45,21 @@ services:
       LN_BFF_PORT: 8080
       LN_WEB_DIST: /opt/lightnovel/web/dist
       LN_BFF_DATA_DIR: /data
+      LN_NOVEL_STORAGE_ROOT: /storage/novel
+      LN_MANGA_STORAGE_ROOT: /storage/manga
+      LN_NOVEL_STORAGE_LABEL: "${LN_NOVEL_STORAGE_HOST:-./data/novel-downloads}"
+      LN_MANGA_STORAGE_LABEL: "${LN_MANGA_STORAGE_HOST:-./data/manga-downloads}"
+      LN_DOWNLOAD_FOLDERS_FILE: /storage-settings/download-folders.json
       LN_BFF_LIBRARY_DIR: /data/library
       LN_FIXTURES_DIR: /opt/lightnovel/test/fixtures
       LN_DART_BINARY: /opt/bnp/bnp_headless
       LN_DART_PROJECT_DIR: /opt/lightnovel/vendor/bili_novel_packer
-      # Optional shared-secret gate for every /api/* request. Empty = disabled.
+      # Optional token for scripts. Browser access uses accounts by default.
       LN_BFF_TOKEN: "${LN_BFF_TOKEN:-}"
+      LN_STUDIO_ACCOUNTS: "${LN_STUDIO_ACCOUNTS:-true}"
+      LN_STUDIO_SETUP_CODE: "${LN_STUDIO_SETUP_CODE:-}"
+      LN_STUDIO_SECURE_COOKIE: "${LN_STUDIO_SECURE_COOKIE:-false}"
+      LN_STUDIO_WEB_ORIGIN: "${LN_STUDIO_WEB_ORIGIN:-}"
       # Destructive DELETE /api/library/:id stays off unless explicitly opted in.
       LN_BFF_ALLOW_DELETE: "${LN_BFF_ALLOW_DELETE:-false}"
       LN_BFF_CORS_ORIGIN: "${LN_BFF_CORS_ORIGIN:-}"
@@ -58,13 +69,28 @@ services:
       LN_REQUEST_INTERVAL_MS: "${LN_REQUEST_INTERVAL_MS:-4000}"
       LN_MAX_CONCURRENT_DOWNLOADS: "${LN_MAX_CONCURRENT_DOWNLOADS:-1}"
       LN_LOG_LEVEL: "${LN_LOG_LEVEL:-info}"
+      SUWAYOMI_URL: "${LN_SUWAYOMI_URL:-${SUWAYOMI_URL:-}}"
+      SUWAYOMI_USERNAME: "${LN_SUWAYOMI_USERNAME:-${SUWAYOMI_USERNAME:-}}"
+      SUWAYOMI_PASSWORD: "${LN_SUWAYOMI_PASSWORD:-${SUWAYOMI_PASSWORD:-}}"
+      SUWAYOMI_TIMEOUT_MS: "${LN_SUWAYOMI_TIMEOUT_MS:-${SUWAYOMI_TIMEOUT_MS:-8000}}"
+      LN_VOLUME_ARCHIVE_URL: "${LN_VOLUME_ARCHIVE_URL:-}"
+      SUWAYOMI_TITLE_ALIASES: "${SUWAYOMI_TITLE_ALIASES:-}"
+      LN_KOMGA_ALLOWED_URLS: "${LN_KOMGA_ALLOWED_URLS:-}"
+      LN_KOMGA_URL: "${LN_KOMGA_URL:-}"
+      LN_KOMGA_API_KEY: "${LN_KOMGA_API_KEY:-}"
+      LN_KOMGA_USERNAME: "${LN_KOMGA_USERNAME:-}"
+      LN_KOMGA_PASSWORD: "${LN_KOMGA_PASSWORD:-}"
+      LN_KOMGA_TIMEOUT_MS: "${LN_KOMGA_TIMEOUT_MS:-8000}"
 
     ports:
-      - "${LN_WEB_PORT:-5273}:8080"
+      - "${LN_STUDIO_PORT:-${LN_WEB_PORT:-5273}}:8080"
 
     volumes:
       # Mutable state: library EPUBs, task records, logs and the local index.
-      - "${LN_DATA_DIR:-./data}:/data"
+      - "${LN_STUDIO_DATA_DIR:-${LN_DATA_DIR:-./data}}:/data"
+      - "${LN_NOVEL_STORAGE_HOST:-./data/novel-downloads}:/storage/novel"
+      - "${LN_MANGA_STORAGE_HOST:-./data/manga-downloads}:/storage/manga"
+      - "${LN_DOWNLOAD_SETTINGS_HOST:-./data/download-settings}:/storage-settings"
       # Code and build artefacts are mounted read-only; rebuild on the host and
       # restart the container, no image rebuild needed.
       - "./server:/opt/lightnovel/server:ro"
@@ -79,13 +105,12 @@ services:
       - "${LN_DART_BINARY_HOST:-./bnp_headless}:/opt/bnp/bnp_headless:ro"
 
     healthcheck:
-      # Works with or without LN_BFF_TOKEN: the token is read from the
-      # container environment, never embedded in this file.
+      # The auth status endpoint is available before the account is created.
       test:
         - "CMD"
         - "node"
         - "-e"
-        - "const h=process.env.LN_BFF_TOKEN?{'x-ln-token':process.env.LN_BFF_TOKEN}:{};fetch('http://127.0.0.1:8080/api/health',{headers:h}).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        - "fetch('http://127.0.0.1:8080/api/auth/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
       interval: 30s
       timeout: 5s
       retries: 3
@@ -105,6 +130,28 @@ services:
 
     networks:
       - default
+
+  suwayomi:
+    profiles: ["manga"]
+    image: ghcr.io/suwayomi/suwayomi-server:v2.4.2366
+    platform: linux/amd64
+    restart: unless-stopped
+    environment:
+      AUTH_MODE: "${SUWAYOMI_AUTH_MODE:-none}"
+      AUTH_USERNAME: "${LN_SUWAYOMI_USERNAME:-${SUWAYOMI_USERNAME:-}}"
+      AUTH_PASSWORD: "${LN_SUWAYOMI_PASSWORD:-${SUWAYOMI_PASSWORD:-}}"
+    ports:
+      # Optional admin access from the host. Studio uses the internal service name.
+      - "${SUWAYOMI_ADMIN_BIND:-127.0.0.1}:${SUWAYOMI_ADMIN_PORT:-4567}:4567"
+    volumes:
+      - suwayomi-downloads:/home/suwayomi/.local/share/Tachidesk/downloads
+      - suwayomi-data:/home/suwayomi/.local/share/Tachidesk
+    networks:
+      - default
+
+volumes:
+  suwayomi-data:
+  suwayomi-downloads:
 
 networks:
   default:
