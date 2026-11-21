@@ -6,21 +6,24 @@ Studio 以只读方式浏览 Komga 中已建立的书库。媒体文件、扫描
 
 ## 连接现有 Komga
 
-在 Studio 的服务端环境设置：
+### 在 WebUI 配置 API Key
+
+1. 在 Studio 的部署环境中配置 `LN_KOMGA_ALLOWED_URLS`，填入可从 Studio 容器访问的 Komga 地址，例如 `http://komga:25600`。已有的 `LN_KOMGA_URL` 也会加入可选地址。通过反代时可填写固定子路径，例如 `https://nas.example/komga`。
+2. 登录 Studio，进入「系统设置 → 服务集成 → Komga API」。选择地址、粘贴从 Komga 生成的 API Key，点击「测试并保存」。连接通过后，管理台即可读取该密钥有权访问的书库。
+3. 前往「我的书库 → Komga」选择书库。
+
+### 通过环境变量配置
 
 ```dotenv
 LN_KOMGA_URL=http://komga:25600
 LN_KOMGA_API_KEY=
-LN_BFF_TOKEN=
 ```
 
-将地址改为 Studio 进程可访问的 Komga 地址。示例使用同一 Docker 网络内的服务名，反向代理部署可在地址中包含 Komga 的固定子路径，例如 `https://nas.example/komga`。
+也可使用 `LN_KOMGA_USERNAME` 与 `LN_KOMGA_PASSWORD`，两种认证方式选一种。配置后重新创建 Studio 容器以应用环境。直接启动可使用 `node --env-file=.env server/serve.mjs`。
 
-- 填入已有的 Komga API Key，或将 `LN_KOMGA_API_KEY` 留空并设置 `LN_KOMGA_USERNAME`、`LN_KOMGA_PASSWORD`。Komga 的书库访问权限适用于 Studio 展示的内容。
-- 使用 Komga 凭据时，同时设置独立的 `LN_BFF_TOKEN`。在 Studio 的「系统设置」中保存这个 BFF 令牌。Komga 凭据只保存在服务端环境。
-- `LN_KOMGA_TIMEOUT_MS` 默认为 8000 毫秒。将 `LN_KOMGA_URL` 留空时，Komga 保持未配置状态。
+Docker 版默认使用管理员会话保护这些接口。仅使用兼容脚本模式时，可在服务端配置独立的 `LN_BFF_TOKEN`。Studio 对 Komga 的请求使用服务端凭据，浏览器无需持有此密钥。
 
-Docker 部署更新原有 `.env` 后，重新构建 Live 前端并运行 `docker compose -f docker-compose.web.yml up -d web` 以应用环境。直接运行 Node 时，使用 `node --env-file=.env server/serve.mjs`。已有其他运行参数可继续沿用。
+向目录写入 CBZ 与浏览书库是两项独立功能。文件输出位置由 [分卷归档服务](MANGA-VOLUME-CBZ.md)管理，Komga 扫描后才会显示新增文件。
 
 ## 接口
 

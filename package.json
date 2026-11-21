@@ -1,7 +1,7 @@
 {
   "name": "dsh-plugin-lightnovel",
   "version": "1.0.0",
-  "description": "DeepSeek Harness native plugin: search light novels across sources, inspect volumes and download EPUB through the original bili_novel_packer Dart core.",
+  "description": "Self-hosted novel and manga studio with Dart EPUB downloads, Suwayomi CBZ archiving, Komga and native DeepSeek Harness tools.",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -19,7 +19,11 @@
     "deepseek-harness",
     "cordis",
     "lightnovel",
-    "epub"
+    "epub",
+    "manga",
+    "cbz",
+    "suwayomi",
+    "komga"
   ],
   "files": [
     "dist",

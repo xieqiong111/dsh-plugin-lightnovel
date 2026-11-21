@@ -22,16 +22,16 @@ Suwayomi 的数据和配置保存在 `suwayomi-data`，下载保存在 `suwayomi
 | 变量 | 说明 |
 | --- | --- |
 | `SUWAYOMI_URL` | 进程可达的固定 HTTP(S) origin，例如 `http://suwayomi:4567`。缺省时仅轻小说可用。 |
-| `SUWAYOMI_USERNAME` / `SUWAYOMI_PASSWORD` | 上游启用 HTTP Basic 时成对提供。WebUI 和 DSH 进程使用各自的服务端环境，浏览器持有 BFF `X-LN-Token`。配置上游 Basic 凭据时必须设置 `LN_BFF_TOKEN` 才能启用 Studio 漫画 API。 |
+| `SUWAYOMI_USERNAME` / `SUWAYOMI_PASSWORD` | 上游启用 HTTP Basic 时成对提供。WebUI 和 DSH 进程使用各自的服务端环境，Studio 使用管理员会话或独立的 `LN_BFF_TOKEN` 保护漫画 API。 |
 | `SUWAYOMI_TIMEOUT_MS` | 每次上游请求的超时，适用于 GraphQL 和封面。 |
 | `SUWAYOMI_TITLE_ALIASES` | 可选 JSON 别名组，例如 `[["星港邮差","星際信使"]]`。最多 100 组，每组 2–8 个标题。识别后仍由 Suwayomi 的源搜索。 |
 | `SUWAYOMI_AUTH_MODE` | 仅设置 Compose 管理的 Suwayomi，默认 `none`，可使用 `basic_auth`。 |
 | `SUWAYOMI_ADMIN_BIND` / `SUWAYOMI_ADMIN_PORT` | 管理端口的宿主机监听地址和端口，默认为 `127.0.0.1:4567`。 |
 | `LN_STUDIO_PORT` / `LN_STUDIO_DATA_DIR` | Studio 的端口和小说存储，可分别继承旧的 `LN_WEB_PORT` 和 `LN_DATA_DIR`。 |
-| `LN_BFF_TOKEN` | 可选的 WebUI/BFF 认证令牌，独立于上游凭据。 |
+| `LN_BFF_TOKEN` | 可选的 BFF 脚本访问令牌，独立于浏览器会话和上游凭据。 |
 | `VITE_API_MODE` | `mock`（默认）使用演示数据。部署时使用 `live`，漫画服务故障时显示真实错误。 |
 
-连接变量也接受 `LN_SUWAYOMI_URL`、`LN_SUWAYOMI_USERNAME`、`LN_SUWAYOMI_PASSWORD` 和 `LN_SUWAYOMI_TIMEOUT_MS`，同一变量同时设置时优先使用 `LN_` 前缀。上游地址由进程环境提供。BFF 使用固定的 GraphQL 路径，封面代理仅接受相同 origin 中与该漫画 ID 对应的Suwayomi 封面路径。代理拒绝重定向，限制上游请求及响应大小。浏览器请求里不接受上游 URL，也不会得到 Suwayomi 凭据。
+连接变量也接受 `LN_SUWAYOMI_URL`、`LN_SUWAYOMI_USERNAME`、`LN_SUWAYOMI_PASSWORD` 和 `LN_SUWAYOMI_TIMEOUT_MS`，同一变量同时设置时优先使用 `LN_` 前缀。上游地址由进程环境提供。BFF 使用固定的 GraphQL 路径，封面代理仅接受相同 origin 中与该漫画 ID 对应的 Suwayomi 封面路径。代理拒绝重定向，限制上游请求及响应大小。浏览器请求里不接受上游 URL，也不会得到 Suwayomi 凭据。
 
 ## BFF 接口
 
@@ -57,6 +57,8 @@ Suwayomi 的数据和配置保存在 `suwayomi-data`，下载保存在 `suwayomi
 POST 请求使用 `Content-Type: application/json`。失败使用 `{ "error": { "code": "...", "message": "..." } }`。Suwayomi 连接失败、认证失败、扩展搜索失败、更新冲突与不兼容响应通过漫画路由返回。浏览器按适用能力禁用队列操作。下载完成的项目可能从 Suwayomi 队列消失，详情页的已下载章节仍可查询。Suwayomi 本地源的章节已经位于服务的数据目录，详情页禁用下载操作。
 
 书架成员身份是 Studio 的追更显示依据。定时检查、分类筛选、章节下载策略和更新冲突由 Suwayomi 管理。轻小说的自动追更依旧是占位。
+
+[按卷下载到 Komga、归档 API 和 Docker 日志](MANGA-VOLUME-CBZ.md)
 
 ## 验证入口
 

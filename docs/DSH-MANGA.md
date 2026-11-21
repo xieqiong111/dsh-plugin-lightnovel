@@ -1,6 +1,6 @@
 # Native DSH manga tools
 
-The plugin exposes manga tools alongside the existing light-novel tools. They call the shared Suwayomi client used by the web backend, so both surfaces use the same server URL, authentication, GraphQL operations, and normalized results.
+The plugin exposes manga tools alongside the existing light-novel tools. They call the shared Suwayomi client used by the web backend, so both surfaces use the same server URL, authentication, GraphQL operations, and normalized results. The Studio read-only API is a separate connection.
 
 ## Install and configure
 
@@ -38,10 +38,19 @@ The unprefixed `SUWAYOMI_URL`, `SUWAYOMI_USERNAME`, `SUWAYOMI_PASSWORD`, and `SU
 | `manga_library` | List manga currently in the Suwayomi library. |
 | `manga_sources` | List installed Suwayomi sources. |
 | `manga_subscribe` | Set Suwayomi's `inLibrary` flag for one manga. |
+| `manga_komga_download` | Enqueue one recognized volume for automatic CBZ export. |
+| `manga_komga_status` | Read the actual chapter queue and confirm the archived CBZ filename. |
+| `studio_read` | Query Studio libraries and task or archive status with a scoped read-only key. |
 
 The shortest workflow is `manga_sources` → `manga_search` → `manga_details` → `manga_chapters` → `manga_download` → `manga_tasks`. `manga_download` takes both the parent `mangaId` and explicit `chapterIds` returned by `manga_chapters`, so the client can verify every chapter belongs to that manga before enqueueing. Use `manga_subscribe` with `inLibrary: true` to add a manga to the library, or `false` to remove it. Suwayomi exposes library membership here; it does not expose a separate recurring subscription schedule through this operation.
 
 `manga_download` only enqueues chapters in Suwayomi's queue. It does not retrieve page images into the DSH plugin. For chapter images and reading, use the Suwayomi reader.
+
+## Komga archive and Studio read API
+
+For the volume tools, set `LN_VOLUME_ARCHIVE_URL` to the internal archive service and keep the Suwayomi connection configured. See [archive deployment and progress APIs](MANGA-VOLUME-CBZ.md). You can supply these service settings through a private JSON file using `LN_MANGA_CONNECTION_FILE`.
+
+For `studio_read`, generate a read-only key in Studio under **系统设置 → 服务集成**. Save it to a private file readable by DSH and set `LN_STUDIO_READ_URL` to the Studio origin and `LN_STUDIO_READ_TOKEN_FILE` to that file's path inside the DSH container. To list available operations and supported arguments, see [Studio integrations](../web/README.md#komga-api-和-dsh-只读密钥).
 
 ## Verify native loading
 

@@ -1,280 +1,74 @@
-# dsh-plugin-lightnovel
+# Novel & Manga Studio
 
-DeepSeek Harness (Cordis) 原生插件：提供**轻小说搜索与 EPUB 下载闭环**，并通过 Suwayomi 提供独立的漫画搜索、书库与下载队列工具。
+**在一个 Web 管理台里搜索、下载和管理轻小说与漫画。** 轻小说由原有 Dart 引擎生成 EPUB，漫画由 Suwayomi 下载。可以把漫画按卷归档成 CBZ，存入 Komga 的书库目录，也可以让 DeepSeek Harness（DSH）调用原生工具管理下载和查询进度。
 
-基于原项目 [montaro2017/bili_novel_packer](https://github.com/montaro2017/bili_novel_packer)（Dart CLI）开发，**保留其采集、正文恢复、插图嵌入与 EPUB 打包能力**，仅在外围增加非交互接口、进度/取消钩子和工具层。
+适合部署在飞牛 NAS 或其他 Linux x86-64 Docker 主机。使用 Web 管理台无需安装 DSH 或配置大模型。
 
-> 设计原则：**只复用、不重写**。Dart 的 `LightNovelSource` / `NovelPacker` / `EpubPacker` 原样 vendored；TypeScript 侧只做搜索聚合、任务编排、持久化与 DSH 工具注册。
+![Novel & Manga Studio 桌面书库，包含轻小说与漫画演示数据](docs/images/studio-library.jpg)
 
----
+[部署到 NAS](docs/DEPLOY-NAS.md#4-web-管理台bff--live-前端) · [WebUI 使用指南](web/README.md) · [连接 Suwayomi](docs/MANGA.md) · [连接 Komga](docs/KOMGA.md) · [安装 DSH 插件](docs/DSH-MANGA.md)
 
-## 能力
+## 你可以做什么
 
-| 工具 | 作用 |
-|------|------|
-| `novel_search` | 多书源关键词检索，支持书名 / 别名 / 作者 / 标签，繁简体匹配，结构化结果与相关度排序 |
-| `novel_details` | 通过原 Dart 采集器获取书籍完整元数据并合并本地索引 |
-| `novel_volumes` | 列出全部分卷与章节（1-based 索引、卷名、章节数、章节 URL） |
-| `novel_download` | 后台任务方式下载 EPUB，返回 `taskId`，支持 `combine` 合卷 |
-| `novel_tasks` | 进度查询 / 取消 / 失败重试 / 任务列表 / 结构化日志 / 运行诊断 |
-| `novel_library` | 已下载 EPUB 库：列表、详情、校验、sha256、删除（需确认） |
+| 场景 | 能力 |
+| --- | --- |
+| **轻小说** | 搜索、查看详情和目录，选卷下载 EPUB。支持合卷、查询任务、取消与重试，以及书库文件校验。 |
+| **漫画** | 搜索 Suwayomi 已安装的来源，查看章节、已读和已下载状态，批量加入下载队列。简繁和别名用于扩展检索词，同名作品保留各自的来源。 |
+| **按卷归档** | 选卷后「一键下载到 Komga」。归档容器读取实际下载进度，齐卷后生成 CBZ。轻小说 EPUB 与漫画 CBZ 可分别设置保存目录。 |
+| **统一书库** | 在同一界面浏览 EPUB、Suwayomi 书架和已连接的 Komga 书库。Komga 负责扫描、阅读和阅读记录。 |
+| **账号与 API** | Docker 版首次创建管理员，登录可选择在此设备保留 8 小时、1 天、7 天或 30 天。系统设置可填写 Komga API Key，也可生成或撤销 DSH 只读密钥。 |
 
-### 漫画（Suwayomi）
+Studio、Suwayomi、CBZ 归档容器可以独立部署。Studio 负责界面与 API，Dart 和 Suwayomi 分别处理各自的下载；归档容器读取 Suwayomi 的已下载文件，两个引擎各自保留数据。
 
-| 工具 | 作用 |
-|------|------|
-| `manga_search` | 通过 Suwayomi 已安装书源检索或浏览漫画 |
-| `manga_details` | 获取漫画元数据 |
-| `manga_chapters` | 分页列出章节及阅读 / 下载状态 |
-| `manga_download` | 将明确选择的章节加入 Suwayomi 下载队列 |
-| `manga_tasks` | 查询下载队列或取消指定章节 |
-| `manga_library` | 列出 Suwayomi 书库漫画 |
-| `manga_sources` | 列出已安装漫画书源 |
-| `manga_subscribe` | 设置漫画是否加入 Suwayomi 书库 |
+## 快速开始
 
-`manga_subscribe` 对应 Suwayomi 的书库成员状态，不表示周期性自动追更订阅。安装步骤见 [DSH 原生漫画工具](./docs/DSH-MANGA.md)。WebUI 接口、环境变量及 NAS 部署见 [Suwayomi 漫画集成](./docs/MANGA.md)。已有 Komga 实例可通过 [Komga 书库配置](./docs/KOMGA.md) 加入 Studio。
+### 先看界面
 
-[漫画下载后自动生成分卷 CBZ](docs/MANGA-VOLUME-CBZ.md)。
+需要 Node.js 24.9 或更新版本。下面启动默认 Mock 模式，使用明确标注的演示数据。
 
-闭环示例（工具返回值均为 lossless JSON）：
-
-```
-novel_search  {query:"月下的茶館"}      → results[0].id = "fixture:moon-teahouse"
-novel_details {bookId:"..."}            → title/author/cover/description/status/volumes
-novel_volumes {bookId:"..."}            → volumes[{index:1,name:"第一卷 启程",chapters:[...]}]
-novel_download{bookId:"...",volumes:"1"}→ {ok:true, taskId:"task_..."}
-novel_tasks   {action:"get",taskId:"…"} → state/percent/downloadedChapters/artifacts[sha256,integrity]
-novel_library {action:"list"}           → entries[{relativePath, absolutePath, sha256, integrity}]
+```sh
+git clone https://github.com/xieqiong111/dsh-plugin-lightnovel.git
+cd dsh-plugin-lightnovel
+git switch feat/suwayomi-manga-studio
+npm --prefix web ci
+npm --prefix web run dev -- --host 127.0.0.1
 ```
 
----
+打开终端显示的本地预览地址，一般为 `http://127.0.0.1:5173/`。Studio 集成版本目前在 `feat/suwayomi-manga-studio` 分支。
 
-## 安装
+### 部署真实服务
 
-前置：Node **>= 24.9.0**、DSH **0.2.2-rc.1**（`engines` 会校验）。下载 EPUB 还需 Dart SDK >= 3.11 或已编译的 `bnp_headless`。
+1. 准备 Live 前端、Dart 下载器、持久化目录和 Docker 网络，再启动 Studio。见 [NAS 部署指南](docs/DEPLOY-NAS.md#4-web-管理台bff--live-前端)。
+2. 打开 Studio，默认端口为 `5273`。首次部署从持久化数据目录读取初始化码并创建账号。见 [首次登录](web/README.md#首次创建管理员)。
+3. 漫画功能需要可访问的 Suwayomi 服务和已安装的来源。可以连接已有实例，也可以用 Compose 启动独立实例。见 [漫画部署和 API](docs/MANGA.md)。
+4. 要生成分卷 CBZ，启动归档容器，并将输出目录设为 Komga 漫画库下的目录。要在 Studio 浏览 Komga 书库，在系统设置另行保存 Komga API Key。见 [CBZ 归档](docs/MANGA-VOLUME-CBZ.md)和 [Komga 配置](docs/KOMGA.md)。
 
-### 方式 A：npm / tarball（推荐，含预构建产物）
+### 在 DSH 中使用
 
-```bash
-dsh plugin --profile myprofile add dsh-plugin-lightnovel
-# 或从本地打包产物
-npm pack                     # 生成 dsh-plugin-lightnovel-1.0.0.tgz
-dsh plugin --profile myprofile add ./dsh-plugin-lightnovel-1.0.0.tgz
-```
+使用 **DSH 0.2.2-rc.1**。从功能分支构建后用 `npm pack` 生成插件包，再用 `dsh plugin --profile <名称> add <包路径>` 安装。
 
-### 方式 B：从 git 源码安装
+- 轻小说从 `novel_search`、`novel_volumes` 开始，用 `novel_download` 创建任务、`novel_tasks` 查询状态。
+- 漫画从 `manga_search` 和 `manga_chapters` 开始，用 `manga_download` 下载指定章节。按卷归档使用 `manga_komga_download`，用 `manga_komga_status` 查询进度和实际写入的文件。
+- `studio_read` 使用 WebUI 生成的只读密钥查询 Studio 书库、队列和归档状态。下载工具使用各自后端连接。
 
-```bash
-dsh plugin --profile myprofile add github:xieqiong111/dsh-plugin-lightnovel
-```
+[DSH 安装、环境变量与工具列表](docs/DSH-MANGA.md)
 
-git 安装拉取的是源码，pnpm ≥10 会拒绝运行 `prepare` 构建脚本。按 `dsh` 提示把包键写入该 profile 的 `pnpm-workspace.yaml`：
+## 使用限制
 
-```yaml
-allowBuilds:
-  dsh-plugin-lightnovel: true
-```
+- 筛选漫画语言和来源取决于 Suwayomi 已安装的扩展及源站可用性。
+- 自动分卷依赖来源提供卷号。只有话号的内容仍可由 Suwayomi 下载；有卷号的分话会等目录中该卷的所有分话下载齐后再生成 CBZ。Komga 扫描文件后才会显示新书。
+- 漫画追更沿用 Suwayomi 的书架和更新策略。轻小说自动追更页面仍是占位。
+- Live 模式显示实际服务状态。来源断线或下载失败时，界面显示错误和已确认的进度。在线轻小说书源的搜索条件见 [在线书源说明](docs/LIVE-SOURCES.md)。
 
-然后重新 `add`。`prepare` 脚本在 `dist/` 缺失时会自行编译 TypeScript。
+## 代码与文档
 
-### 编译 Dart 核心（下载功能必需）
+| 路径 | 用途 |
+| --- | --- |
+| [`web/`](web/) · [`server/`](server/) | React 管理台、登录、HTTP API 与上游适配 |
+| [`src/`](src/) · [`vendor/bili_novel_packer/`](vendor/bili_novel_packer/) | DSH 工具、小说任务与书库，以及原 Dart 核心 |
+| [`docker/`](docker/) · [`docs/`](docs/README.md) | 部署配置、CBZ 归档容器与文档索引 |
+| [`test/`](test/) · [`scripts/`](scripts/) | 单元测试、离线样例及部署和 API 验证脚本 |
 
-```bash
-cd vendor/bili_novel_packer
-dart pub get
-dart compile exe bin/headless.dart -o build/bnp_headless
-```
+[本地开发与测试](docs/README.md#开发和验证) · [手机端漫画详情截图](docs/images/studio-manga-mobile.jpg)
 
-或设置 `LN_DART_BINARY=/opt/bnp/bnp_headless`（Docker 镜像已内置到该路径，会自动探测）。也可以设置 `LN_DART_SDK` 让插件走 `dart run bin/headless.dart`。
-
-### 验证安装（不需要 LLM key）
-
-```bash
-dsh --profile myprofile --dump-config | grep -A 20 "== dsh-plugin-lightnovel"
-```
-
-应能看到 `id: lightnovel` 行及全部配置项。
-
----
-
-## Web 管理台（Mock / Live 双模式）
-
-仓库内 [`web/`](./web) 是一套独立的 React + TypeScript + Vite + Tailwind 前端，按设计稿还原「轻小说管理中心」工作台，覆盖 Dashboard、搜索发现、小说详情、下载任务、我的书库、书源状态、自动追更、统计分析、系统设置九个页面。
-
-同一个前端有两种构建模式，默认仍是可离线托管的纯静态原型：
-
-| 模式 | 构建 | 数据来源 | 用途 |
-|---|---|---|---|
-| Mock（默认） | `npm run build` | `web/src/data/mock.ts` + 2.6s 演示计时器 | 纯静态预览、视觉验收，无需后端 |
-| Live | `VITE_API_MODE=live npm run build` | `server/serve.mjs` 的 `/api/*` → `PluginRuntime` | 真实搜索、详情、分卷、下载、EPUB 书库 |
-
-```bash
-# 1. 插件与 Dart 核心
-npm ci && npm run build
-cd vendor/bili_novel_packer && dart pub get \
-  && dart compile exe bin/headless.dart -o build/bnp_headless && cd ../..
-
-# 2. Live 前端 + BFF
-cd web && VITE_API_MODE=live npm run build && cd ..
-LN_BFF_DATA_DIR="$PWD/.local-web-data" node server/serve.mjs
-# http://127.0.0.1:5273/
-```
-
-BFF 是一个零依赖 Node HTTP 进程：同端口托管 `web/dist` 与 `/api/*`，直接 `new PluginRuntime`，不复制业务逻辑、不调用 LLM、不经过 DSH CLI。它同时支持只读静态预览（未构建前端时会输出构建指引）与完整下载闭环。
-
-### API 契约
-
-| 方法 | 路径 | 说明 |
-|---|---|---|
-| GET | `/api/health` | `{ok, dart, uptime}`，容器 healthcheck 使用 |
-| GET | `/api/status` | 运行时状态、书源、Dart runner（仅 basename）、书库统计、`features` |
-| GET | `/api/novels?query=&sources=&status=&limit=` | 空 query 返回本地索引候选，只读、**不触网**；前端在空搜索框时不请求。有 query 才搜索并如实返回 `degradedSources` |
-| GET | `/api/novels/:id` | 详情；Dart 可用时带分卷，失败回退本地索引 |
-| GET | `/api/novels/:id/volumes` | 分卷，`id` 形如 `${bookId}#v${index}` |
-| GET / POST | `/api/tasks` | 任务列表 / 创建（`volumeSelector` 还原 Dart 选择器） |
-| POST | `/api/tasks/:id/cancel` \| `/retry` | 取消 / 重试 |
-| GET | `/api/library?query=` | EPUB 书库索引 |
-| GET | `/api/library/stats` | 文件数 / 任务数 / 校验数 / 字节 / 章节数 |
-| POST | `/api/library/:id/verify` | SHA-256 完整性校验 |
-| GET / HEAD | `/api/library/:id/file` | EPUB 二进制流 |
-| DELETE | `/api/library/:id` | 需 `LN_BFF_ALLOW_DELETE=true`，否则 403 |
-| GET | `/api/sources` / `/api/activities` | 书源注册表 / 最近活动（来自真实日志） |
-
-### BFF 环境变量
-
-| 变量 | 默认 | 说明 |
-|---|---|---|
-| `LN_BFF_HOST` / `LN_BFF_PORT` | `127.0.0.1` / `5273` | 监听地址 / 端口（容器内用 `0.0.0.0:8080`） |
-| `LN_WEB_DIST` | `<repo>/web/dist` | 前端产物目录 |
-| `LN_BFF_DATA_DIR` | `~/.local/share/dsh-plugin-lightnovel-web` | 数据、任务、日志、索引根目录 |
-| `LN_BFF_LIBRARY_DIR` | `<data>/library`，否则 `LN_LIBRARY_DIR` | EPUB 库目录 |
-| `LN_BFF_TOKEN` | 空 | 设置后每个 `/api/*` 都要 `X-LN-Token` 或 `Authorization: Bearer`；前端在设置页填写，存 localStorage |
-| `LN_BFF_ALLOW_DELETE` | `false` | 显式开启 `DELETE /api/library/:id` |
-| `LN_BFF_CORS_ORIGIN` | 空 | 分离域名开发时的允许源 |
-| `LN_DART_BINARY` / `LN_DART_SDK` | 自动探测 | 下载/详情/分卷所需的 Dart 运行方式 |
-| `LN_FIXTURES_DIR` | 包内 `test/fixtures` | 离线 fixture 根目录 |
-| `LN_ENABLED_SOURCES` / `LN_OFFLINE_ONLY` | `bilinovel,fixture` / `false` | 书源范围；离线部署设 `fixture,true` |
-| `LN_RESPECT_ROBOTS` | `true` | 保持开启，不提供绕过开关 |
-
-安全与合规：`MAX_BODY=64KB`、`timingSafeEqual` token 比较、SSRF 公网 URL 校验、库路径 `safeResolve`、静态路径穿越拒绝、受限/登录书源禁用、不伪造评分/延迟/成功率、空 query 不触网。容器部署见 [`docker-compose.web.yml`](./docker-compose.web.yml) 与 [`docs/DEPLOY-NAS.md`](./docs/DEPLOY-NAS.md)。
-
-### 验证
-
-```bash
-npm run verify:web
-# 隔离数据目录 + 随机端口 + 离线 fixture：
-# health/status/搜索/详情/分卷/任务/书库/EPUB/sha256/verify/错误路径/
-# 静态托管/SPA fallback/token/DELETE 全链路，49 项断言。
-```
-
-- 视觉还原与逐区域对比：[web/docs/COMPARISON.md](./web/docs/COMPARISON.md)、[web/docs/screenshots](./web/docs/screenshots)
-- 功能清单、Mock 边界、Live 接入与环境变量：[web/README.md](./web/README.md)
-- 前端默认数据层仍是 Mock（`web/src/services/novelApi.ts`），界面标注「交互原型 · 非真实数据」；Live 构建标注「实时数据」，且不再注入任何演示数据。
-
----
-
-## 配置
-
-所有配置都可在 profile 的 `cordis.patch.yml` 中按 `id: lightnovel` 覆盖整行 `config`（patch 层是按行替换，不是深合并）。默认层见 [`cordis.patch.yml`](./cordis.patch.yml)，对应环境变量如下：
-
-| 配置项 | 环境变量 | 默认 | 说明 |
-|--------|----------|------|------|
-| `dataDir` | `LN_DATA_DIR` | `~/.local/share/dsh-plugin-lightnovel` | 任务/索引/日志根目录 |
-| `libraryDir` | `LN_LIBRARY_DIR` | `<dataDir>/library` | EPUB 库目录 |
-| `dartBinary` | `LN_DART_BINARY` | 自动探测 | 编译后的 `bnp_headless` |
-| `dartProjectDir` | `LN_DART_PROJECT_DIR` | 包内 `vendor/bili_novel_packer` | Dart 工程根 |
-| `fixturesDir` | `LN_FIXTURES_DIR` | 包内 `test/fixtures` | 离线书源数据 |
-| `enabledSources` | `LN_ENABLED_SOURCES` | `bilinovel,fixture` | 启用的书源 id |
-| `requestIntervalMs` | `LN_REQUEST_INTERVAL_MS` | `4000` | 同主机最小请求间隔 |
-| `searchTimeoutMs` | — | `15000` | 检索/详情超时 |
-| `taskTimeoutMs` | — | `3600000` | 单任务超时 |
-| `maxConcurrentDownloads` | `LN_MAX_CONCURRENT_DOWNLOADS` | `1` | 并发下载数 |
-| `maxRetries` | `LN_MAX_RETRIES` | `2` | 任务重试上限 |
-| `maxVolumesPerTask` | — | `50` | 单任务最大卷数 |
-| `respectRobots` | `LN_RESPECT_ROBOTS` | `true` | 遵守 robots.txt 与 Crawl-delay |
-| `offlineOnly` | `LN_OFFLINE_ONLY` | `false` | 仅离线 fixture 书源 |
-| `allowNonPublicSources` | — | `false` | 允许可能需登录的书源（仍不提供凭据） |
-| `searchMode` | — | `hybrid` | `live` / `local` / `hybrid` |
-| `userAgent` | — | 含插件标识 | 礼貌 UA |
-| `logLevel` | `LN_LOG_LEVEL` | `info` | `debug`/`info`/`warn`/`error` |
-| `extraTraditionalMap` | — | `""` | 额外繁简对，如 `臺台,裡里` |
-| — | `LN_BILINOVEL_SEARCH_URL` | 不设置 | 显式 opt-in 的在线搜索端点模板（`{q}` 为关键词）；默认不发起 live 搜索，见下文 |
-
-完整说明见 [`docs/CONFIG.md`](./docs/CONFIG.md)。
-
-### 在线书源与真实抓取验证
-
-`bilinovel` 的详情、目录、正文、插图与 EPUB 下载均走**公开页面真实抓取**（由内置 Dart
-核心完成），默认域名为实测可达的 `www.bilinovel.net`。但该站点没有 robots 允许的公开
-GET 关键词搜索端点，因此 live 搜索默认不请求、不伪造命中，`novel_search` 会把
-`bilinovel` 记入 `degradedSources`；可直接把公开详情 URL 交给 `novel_details` /
-`novel_volumes` / `novel_download`。`wenku8` 为受限书源，默认禁用且不绕过登录/付费/Cloudflare。
-
-可复现的真实网络验证脚本为 [`scripts/verify-live.mjs`](./scripts/verify-live.mjs)，
-完整预检证据、合规边界与修复记录见 [`docs/LIVE-SOURCES.md`](./docs/LIVE-SOURCES.md)。
-
----
-
-## 飞牛 NAS / Docker Compose（Linux x86-64）
-
-```bash
-cp .env.example .env      # 把 LN_DATA_DIR 改成 NAS 共享文件夹绝对路径
-docker compose up -d --build
-docker compose logs -f    # 输出组合后的 DSH 配置，验证安装
-docker compose exec lightnovel dsh --profile nas --dump-config
-```
-
-镜像为 `linux/amd64`，内置 Node 24、DSH CLI 与编译好的 Dart `bnp_headless`。所有状态落在挂载的 `/data`。无外网时设 `LN_OFFLINE_ONLY=true`，仅使用内置离线书源运行完整闭环。详见 [`docs/DEPLOY-NAS.md`](./docs/DEPLOY-NAS.md)。
-
----
-
-## 测试
-
-```bash
-npm install
-npm run build            # TypeScript -> dist/
-npm run test:unit        # 71 个单元测试（含在线书源、Dart bridge、书库去重回归）
-npm run test:integration # 真实 DSH 运行时加载 + 六工具调用 + CLI 组合
-npm run test:dart        # 编译 Dart 核心并端到端生成 EPUB
-npm test                 # 全部 88 项 vitest
-npm run verify:web       # BFF + Live 前端 49 项端到端断言（隔离数据目录、离线 fixture）
-```
-
-`verify:web` 需要先构建插件（`npm run build`）与 Live 前端（`cd web && VITE_API_MODE=live npm run build`），并使用 Node 24 + Dart。脚本会随机端口启动真实 BFF，覆盖搜索、下载、EPUB、token、删除、静态托管与错误路径，不污染真实书库。
-
-`test:integration` **不是模拟**：它启动真实的 Cordis `Context`，挂载真实的 `ToolsService` / `SystemPrompt` / NativeToolExecutor，把 `dist/index.js` 通过 `ctx.plugin()` 载入，再经 `ctx.tools.execute()` 派发调用，走完完整闭环并校验生成的 EPUB。另一组测试调用真实 `dsh --dump-config` 验证 bundle 组合层。
-
-测试全部离线（`fixture` 书源 + 本地 PNG + 编译好的 Dart 核心），不访问任何第三方站点。
-
----
-
-## 合规与边界
-
-- 仅访问公开页面；`robots.txt` 与 `Crawl-delay` 生效，同主机最小间隔限速，重定向逐跳重新校验。
-- 请求显式 `credentials: 'omit'`，不携带/存储 Cookie 或 Authorization，**不绕过登录、付费或访问控制**。
-- SSRF 防护：拒绝私网、环回、链路本地、云元数据地址、非标准端口、内嵌凭据与非 HTTP(S) 协议；书源域名白名单。
-- 路径安全：所有库路径为相对路径并经 `safeResolve` 证明未越出根目录；任务 id、书名均做消毒。
-- `wenku8` 等受限书源默认禁用；即使开启也不会提供任何会话凭据。
-
----
-
-## 目录结构
-
-```
-src/                     TypeScript 插件（工具、任务、持久化、搜索、合规、日志）
-server/                  BFF：PluginRuntime -> /api/* + web/dist 静态托管
-web/                     React + TS + Vite 管理台（Mock / Live 双构建）
-vendor/bili_novel_packer/ 原 Dart 项目（仅加性补丁：headless.dart / hooks / fixture_source / console sink）
-test/fixtures/           离线书源数据（books.json / novel.json / catalog.json / 章节 / 图片）
-test/unit/               单元测试
-test/integration/        真实 DSH 运行时与 CLI 集成测试
-scripts/verify-web-api.mjs  BFF + 前端端到端验证（49 项）
-docker/ docker-compose.yml docker-compose.web.yml   NAS / 通用部署
-docs/                    配置、部署、在线书源与合规文档
-```
-
-## License
-
-MIT（本插件）；vendored 原项目许可见 [`THIRD_PARTY_NOTICES.md`](./THIRD_PARTY_NOTICES.md) 与 `vendor/bili_novel_packer/LICENSE`。
-
-> 后续规划（闭环稳定后再做）：AI 自动追更、更多书源适配、可视化管理界面。当前版本刻意不包含这些，以确保「搜索 → 详情 → 卷数 → EPUB」闭环稳定。
+插件采用 MIT 许可，小说下载基于 [bili_novel_packer](https://github.com/montaro2017/bili_novel_packer)。第三方许可见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。

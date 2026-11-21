@@ -159,7 +159,8 @@ $LN_WEB_DIR/
 ```bash
 npm ci
 npm run build                         # 插件 TypeScript -> dist/
-cd web && VITE_API_MODE=live npm run build && cd ..
+npm --prefix web ci
+VITE_API_MODE=live npm run web:build
 ```
 
 把 `server/`、`dist/`、`package.json`、`vendor/`、`test/fixtures/`、`web/dist/` 与 `docker-compose.web.yml` 同步到 `$LN_WEB_DIR`。`node_modules/` 与 `bnp_headless` 建议直接复用已有的插件镜像，避免在 NAS 上重新编译 Dart：
@@ -195,12 +196,14 @@ LN_OFFLINE_ONLY=true
 # LN_ENABLED_SOURCES=bilinovel,fixture
 # LN_OFFLINE_ONLY=false
 
-# 可选：启用 API token（强烈建议对局域网开放时设置）
+# 可选：脚本访问令牌。WebUI 默认使用管理员账号。
 # LN_BFF_TOKEN=<openssl rand -hex 24>
 
 # 可选：允许删除书库文件；默认 false
 # LN_BFF_ALLOW_DELETE=true
 ```
+
+如使用 WebUI 的目录选择器，提前创建 `LN_NOVEL_STORAGE_HOST`、`LN_MANGA_STORAGE_HOST` 与 `LN_DOWNLOAD_SETTINGS_HOST` 指向的目录，确保容器运行 UID/GID 可以访问。接入 CBZ 容器时，两份 Compose 使用同一份共享设置目录。详见 [保存目录设置](../web/README.md#分别设置下载保存目录)。
 
 创建网络并启动：
 
@@ -222,17 +225,16 @@ docker rename lightnovel-studio-web lightnovel-studio-web-static-old
 ### 4.4 验证
 
 ```bash
-curl -s http://127.0.0.1:5273/api/health
-# {"ok":true,"dart":true,...}
-
-curl -s http://127.0.0.1:5273/api/status
-# 应包含 "apiMode":"live"，dart.runner 只有 basename（不泄漏绝对路径）
+curl -fsS http://127.0.0.1:5273/api/auth/status
+# 新部署时应包含 "enabled":true 与 "needsSetup":true。
+# 未指定初始化码时，可从运行中的容器读取自动生成的码：
+docker compose -f docker-compose.web.yml exec web cat /data/auth/setup-code
 
 curl -sI http://127.0.0.1:5273/ | head -1
 # HTTP/1.1 200 OK，Content-Type: text/html
 ```
 
-浏览器打开 `http://<NAS 地址>:5273/`：
+浏览器打开 `http://<NAS 地址>:5273/`，按 [首次登录说明](../web/README.md#首次创建管理员) 建号并登录。使用离线书源验证以下流程。
 
 - 顶栏显示「实时数据」，不再显示 Mock 胶囊；
 - 首页只展示已正式写入书库的 EPUB（`GET /api/library`）；未入库书目仅在用户显式输入关键词搜索后出现；
@@ -240,13 +242,14 @@ curl -sI http://127.0.0.1:5273/ | head -1
 - 详情 → 选卷 → 创建任务 → 任务页出现真实进度 → 书库出现 EPUB；
 - 书源页显示真实 registry，延迟/成功率为不可用而不是假数字。
 
-若启用了 `LN_BFF_TOKEN`，在「系统设置」填入同一 token；未填时所有 `/api/*` 返回 401，页面会显示错误提示。容器 healthcheck 会自动带上该 token。
+容器使用 `/api/auth/status` 做健康检查。脚本可使用管理员配置的 `LN_BFF_TOKEN`，或在只读场景使用独立的 [DSH 只读密钥](../web/README.md#komga-api-和-dsh-只读密钥)。
 
 ### 4.5 升级与回滚
 
 ```bash
 # 前端更新
-cd web && VITE_API_MODE=live npm run build && cd ..
+npm --prefix web ci
+VITE_API_MODE=live npm run web:build
 docker compose -f docker-compose.web.yml restart web
 
 # BFF 更新（server/ 或 dist/）
