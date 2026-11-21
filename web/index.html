@@ -5,6 +5,13 @@
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>轻小说与漫画书库 · Novel &amp; Manga Library</title>
+    <script>
+      try {
+        const choice = localStorage.getItem('studio_theme')
+        const dark = choice === 'dark' || (choice === 'system' && matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+      } catch {}
+    </script>
     <meta name="description" content="管理轻小说 EPUB、Suwayomi 漫画书架、章节下载与追更" />
   </head>
   <body>

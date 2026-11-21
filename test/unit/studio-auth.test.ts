@@ -91,6 +91,15 @@ it('scopes the DSH credential and never returns stored secrets', async () => {
     const setup = await send('POST', '/api/auth/setup', { username: 'owner', password: 'fixture-admin-pass', setupCode: 'fixture-secret-setup' })
     const cookie = setup.headers.get('set-cookie')!.split(';')[0]
     const route = '/api/settings/integrations'
+    const before = await (await send('GET', route, undefined, cookie)).json()
+    expect(before.preferences).toEqual({ scrapeEnabled: false, scraperConfigured: false, refreshMode: 'after-sync' })
+    const preferences = { action: 'save-komga-preferences', scrapeEnabled: true, refreshMode: 'manual' }
+    expect((await send('POST', route, preferences)).status).toBe(401)
+    expect((await send('POST', route, { ...preferences, scrapeEnabled: 'true' }, cookie)).status).toBe(400)
+    expect((await send('POST', route, { ...preferences, refreshMode: 'invalid' }, cookie)).status).toBe(400)
+    const saved = await (await send('POST', route, preferences, cookie)).json()
+    expect(saved.preferences).toEqual({ scrapeEnabled: true, scraperConfigured: false, refreshMode: 'manual' })
+    expect((await loadIntegrations(settings))?.preferences).toEqual({ scrapeEnabled: true, refreshMode: 'manual' })
     const invalid = await send('POST', route, { action: 'save-komga', url: 'http://unapproved.invalid', apiKey: 'abc' }, cookie)
     expect(invalid.status).toBe(400)
     const first = await (await send('POST', route, { action: 'rotate-dsh' }, cookie)).json()
@@ -101,6 +110,7 @@ it('scopes the DSH credential and never returns stored secrets', async () => {
     expect(await (await send('GET', route, undefined, cookie)).json()).not.toHaveProperty('token')
     expect((await send('GET', '/api/health', undefined, '', first.token)).status).toBe(200)
     expect((await send('GET', route, undefined, '', first.token)).status).toBe(403)
+    expect((await send('POST', route, preferences, '', first.token)).status).toBe(403)
     expect((await send('POST', '/api/tasks', {}, '', first.token)).status).toBe(403)
     const second = await (await send('POST', route, { action: 'rotate-dsh' }, cookie)).json()
     expect((await send('GET', '/api/health', undefined, '', first.token)).status).toBe(401)

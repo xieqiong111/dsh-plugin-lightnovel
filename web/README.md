@@ -27,6 +27,10 @@ VITE_API_MODE=live npm run web:build
 - **下载队列** · 进入「下载任务」，按类型与状态筛选。可用操作以各下载后端为准。
 - **系统设置** · 查看连接情况，选择保存目录，配置 Komga 或发放 DSH 只读 API 密钥。
 
+## 外观模式
+
+点击顶栏或登录页的月亮 / 太阳图标，即可在浅色与深色之间切换。在「系统设置 → 外观」也可选择「跟随系统」。首次访问使用浅色，选择会保存在当前浏览器，刷新后继续生效。
+
 ## 首次创建管理员
 
 Docker 版 Studio 默认启用账号登录。首次打开页面时，从挂载的数据目录读取 `auth/setup-code`，或使用环境变量 `LN_STUDIO_SETUP_CODE`，再设置账号和至少 10 个字符的密码。
@@ -51,11 +55,13 @@ Docker 部署在 `.env` 中指定 `LN_NOVEL_STORAGE_HOST`、`LN_MANGA_STORAGE_HO
 
 ### 同步 Komga 书库路径
 
-在轻小说或漫画卡片点击「同步 Komga 路径」，选书库后点击「同步路径并刷新」。Studio 会选择该 Komga 书库与当前类型可写挂载的共同目录。例如 Komga 书库根是 `/NAS/漫画`，Studio 挂载的是 `/NAS/漫画/Suwayomi`，则使用后者。两边的 NAS 路径名称需一致；范围外的书库只可请求刷新。此操作更新 Studio 的保存位置，Komga 库根和已有文件保持原位。
+在轻小说或漫画卡片点击「同步 Komga 路径」，选择书库并确认同步。「服务集成」中的自动刷新设置决定按钮是否同时提交扫描。Studio 会选择该 Komga 书库与当前类型可写挂载的共同目录。例如 Komga 书库根是 `/NAS/漫画`，Studio 挂载的是 `/NAS/漫画/Suwayomi`，则使用后者。两边的 NAS 路径名称需一致；范围外的书库只可请求刷新。此操作更新 Studio 的保存位置，Komga 库根和已有文件保持原位。
 
 「仅刷新书库」只提交扫描。Komga 需要管理员权限，接受后在后台扫描。页面分别显示保存和扫描结果，可在扫描完成后从「我的书库 → Komga」查看。接口为 `GET /api/settings/download-folders/komga?kind=manga` 和 `POST /api/settings/download-folders/komga`，POST 传 `kind`、`libraryId` 和 `action`（`sync` 或 `scan`）。两者都需要 Studio 管理员会话。
 
 ## Komga API 和 DSH 只读密钥
+
+在「系统设置 → 服务集成 → 刮削与书库刷新」可独立设置 Bangumi 元数据刮削和自动刷新。刷新默认在同步路径后执行，也可选「仅手动刷新」或「同步路径或刮削写入后」。设为仅手动时，路径同步和刮削写入仍可独立完成，也可在路径弹窗点击「仅刷新书库」。
 
 管理员登录后，打开「系统设置 → 服务集成」。在 Komga 区域填写服务地址和 Komga 生成的 API Key，点击「测试并保存」。Studio 会验证能否读取书库，成功后立即用于 WebUI。地址应列在部署的 `LN_KOMGA_ALLOWED_URLS` 中，或与原有 `LN_KOMGA_URL` 一致。Komga 密钥保存在 Studio 私有数据目录，页面不会回显。
 
@@ -73,7 +79,7 @@ DSH 可将令牌保存在仅运行用户可读的文件中，并设置 `LN_STUDI
 | POST | `/api/auth/setup` · `/api/auth/login` · `/api/auth/logout` | 创建首个管理员、登录或撤销会话 |
 | GET / POST | `/api/settings/download-folders` | 查询或保存两类文件的目标目录 |
 | GET | `/api/settings/download-folders/browse` | 浏览允许的子目录 |
-| GET / POST | `/api/settings/integrations` | 管理 Komga 配置与 DSH 只读密钥 |
+| GET / POST | `/api/settings/integrations` | 管理 Komga 连接、刮削和刷新设置、DSH 只读密钥 |
 
 ### 轻小说接口
 

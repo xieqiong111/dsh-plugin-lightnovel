@@ -13,11 +13,11 @@
  * All I/O is offline (the fixture source + a compiled Dart headless binary);
  * no third-party website is contacted.
  */
-import { mkdtemp, rm, stat } from 'node:fs/promises'
+import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRuntime from '@deepseek-ai/dsh-tools'
@@ -32,7 +32,7 @@ const EXPECTED_TOOLS = [
   'novel_search', 'novel_details', 'novel_volumes',
   'novel_download', 'novel_tasks', 'novel_library',
   'manga_search', 'manga_details', 'manga_chapters', 'manga_download',
-  'manga_tasks', 'manga_library', 'manga_sources', 'manga_subscribe',
+  'manga_tasks', 'manga_library', 'manga_sources', 'manga_subscribe', 'komga_bangumi_metadata',
 ]
 
 let ctx: Context
@@ -106,6 +106,31 @@ describe('DSH loading (requirement #12)', () => {
   it('registers all native novel and manga tools in the real ToolsService', () => {
     const names = ctx.tools.schemas().map((t) => t.name)
     for (const tool of EXPECTED_TOOLS) expect(names, `missing ${tool}`).toContain(tool)
+  })
+
+  it('executes Bangumi metadata search through the native DSH tool pipeline', async () => {
+    const token = 'studio_metadata_' + 'a'.repeat(43)
+    const tokenFile = path.join(dataDir, 'metadata-fixture.token')
+    await writeFile(tokenFile, token, { mode: 0o600 })
+    vi.stubEnv('LN_STUDIO_METADATA_URL', 'http://studio.fixture:8080')
+    vi.stubEnv('LN_STUDIO_METADATA_TOKEN_FILE', tokenFile)
+    const request = vi.fn(async (url: URL, init: RequestInit) => {
+      expect(url.href).toBe('http://studio.fixture:8080/api/komga/metadata/search')
+      expect(init.headers).toMatchObject({ authorization: 'Bearer ' + token })
+      expect(init.redirect).toBe('error')
+      expect(JSON.parse(String(init.body))).toEqual({ query: '星海旅途', kind: 'novel', scope: 'series' })
+      return Response.json({ candidates: [{ id: 123, name: '星海旅途' }] })
+    })
+    vi.stubGlobal('fetch', request)
+    try {
+      expect(await call('komga_bangumi_metadata', {
+        action: 'search', query: '星海旅途', kind: 'novel', scope: 'series',
+      })).toMatchObject({ ok: true, data: { candidates: [{ id: 123 }] } })
+      expect(request).toHaveBeenCalledOnce()
+    } finally {
+      vi.unstubAllEnvs()
+      vi.unstubAllGlobals()
+    }
   })
 
   it('each tool has a valid compiled output schema and render projection', () => {

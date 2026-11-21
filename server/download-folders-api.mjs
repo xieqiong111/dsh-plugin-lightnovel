@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { folderWithin, readDownloadFolders, validSubfolder } from '../dist/core/download-folders.js'
 import { atomicWriteJson } from '../dist/util/json.js'
 import { KomgaError } from './komga-client.mjs'
+import { createKomgaScanner } from './komga-scan.mjs'
 
 const base = '/api/settings/download-folders'
 const kindValid = (kind) => kind === 'novel' || kind === 'manga'
@@ -56,7 +57,7 @@ async function readBody(req) {
   throw new FolderError(400, 'INVALID_JSON', '提交的 JSON 无效。')
 }
 
-export function createDownloadFoldersApi(settings, getKomga) {
+export function createDownloadFoldersApi(settings, getKomga, scan = createKomgaScanner()) {
   const { config, mangaStorageRoot } = settings
   const roots = { novel: config?.novelStorageRoot, manga: mangaStorageRoot }
   const filename = config?.downloadFoldersFile
@@ -65,7 +66,7 @@ export function createDownloadFoldersApi(settings, getKomga) {
     manga: settings.mangaStorageLabel || roots.manga,
   }
   let pending = Promise.resolve()
-  const scanRequests = new Map()
+  const refreshOnSync = () => settings.integrations?.preferences?.refreshMode !== 'manual'
 
   async function folders() {
     const saved = filename ? await readDownloadFolders(filename) : { novelFolder: null, mangaFolder: '' }
@@ -132,21 +133,6 @@ export function createDownloadFoldersApi(settings, getKomga) {
     return { client, entries }
   }
 
-  async function scan(client, id) {
-    const now = Date.now()
-    for (const [key, expires] of scanRequests) if (expires <= now) scanRequests.delete(key)
-    if (scanRequests.has(id)) return { accepted: false, message: '刚刚已请求刷新，请稍后再试。' }
-    scanRequests.set(id, now + 15_000)
-    try {
-      await client.scanLibrary(id)
-      return { accepted: true, message: 'Komga 已接受扫描请求。' }
-    } catch (error) {
-      scanRequests.delete(id)
-      return { accepted: false, message: error.code === 'AUTHENTICATION_FAILED'
-        ? 'Komga 拒绝扫描。请使用拥有 Komga 管理员权限的 API Key。' : 'Komga 未确认扫描请求。' }
-    }
-  }
-
   return async (req, res, url) => {
     if (![base, base + '/browse', base + '/komga'].includes(url.pathname)) return false
     const isKomga = url.pathname === base + '/komga'
@@ -169,7 +155,7 @@ export function createDownloadFoldersApi(settings, getKomga) {
         reply(res, 200, await saveFolder(kind, folder, create))
       } else if (isKomga && req.method === 'GET') {
         const { entries } = await komgaChoices(url.searchParams.get('kind'))
-        reply(res, 200, { libraries: entries })
+        reply(res, 200, { libraries: entries, refreshOnSync: refreshOnSync() })
       } else if (isKomga && req.method === 'POST') {
         const { kind, libraryId, action } = await readBody(req)
         if (!['sync', 'scan'].includes(action) || typeof libraryId !== 'string') {
@@ -181,7 +167,10 @@ export function createDownloadFoldersApi(settings, getKomga) {
           throw new FolderError(409, 'KOMGA_LIBRARY_OUTSIDE_MOUNT', '书库不在此类型可写的 NAS 挂载范围内。')
         }
         const saved = action === 'sync' ? await saveFolder(kind, library.folder) : await folders()
-        reply(res, 200, { folders: saved, scan: await scan(client, library.id) })
+        const scanResult = action === 'scan' || refreshOnSync()
+          ? await scan(client, library.id)
+          : { accepted: false, skipped: true, message: '已跳过自动刷新。' }
+        reply(res, 200, { folders: saved, scan: scanResult })
       } else throw new FolderError(405, 'METHOD_NOT_ALLOWED', '请求方法不支持。')
     } catch (error) {
       const detail = error instanceof FolderError || error instanceof KomgaError ? error

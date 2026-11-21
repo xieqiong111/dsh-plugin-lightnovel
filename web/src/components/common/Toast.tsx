@@ -19,23 +19,23 @@ const ToastContext = createContext<ToastContextValue | null>(null)
 
 const toneMap: Record<ToastTone, { icon: React.ReactNode; ring: string; bar: string }> = {
   success: {
-    icon: <CheckCircle2 className="h-4 w-4 text-[#0B9E74]" />,
-    ring: 'border-[#D8F3E8]',
+    icon: <CheckCircle2 className="h-4 w-4 text-positive" />,
+    ring: 'border-positive-line',
     bar: 'bg-[#10B981]',
   },
   info: {
-    icon: <Info className="h-4 w-4 text-[#6C4AD9]" />,
-    ring: 'border-[#E3DBFB]',
+    icon: <Info className="h-4 w-4 text-accent" />,
+    ring: 'border-accent-line',
     bar: 'bg-[#7E5EE9]',
   },
   warning: {
-    icon: <AlertTriangle className="h-4 w-4 text-[#B4791B]" />,
-    ring: 'border-[#F7E8C8]',
+    icon: <AlertTriangle className="h-4 w-4 text-caution" />,
+    ring: 'border-caution-line',
     bar: 'bg-[#F59E0B]',
   },
   error: {
-    icon: <AlertTriangle className="h-4 w-4 text-[#C2377B]" />,
-    ring: 'border-[#F8DCEB]',
+    icon: <AlertTriangle className="h-4 w-4 text-negative" />,
+    ring: 'border-negative-line',
     bar: 'bg-[#F472B6]',
   },
 }
@@ -64,23 +64,23 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <div
             key={item.id}
             className={cn(
-              'pointer-events-auto relative flex items-start gap-3 overflow-hidden rounded-[16px] border bg-white/95 px-4 py-3 shadow-[0_18px_40px_-18px_rgba(30,31,53,0.32)] backdrop-blur animate-toast-in',
+              'pointer-events-auto relative flex items-start gap-3 overflow-hidden rounded-[16px] border bg-surface/95 px-4 py-3 shadow-[0_18px_40px_-18px_rgba(30,31,53,0.32)] backdrop-blur animate-toast-in',
               toneMap[item.tone].ring,
             )}
           >
             <span className={cn('absolute inset-y-0 left-0 w-[3px]', toneMap[item.tone].bar)} />
             <span className="mt-0.5">{toneMap[item.tone].icon}</span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[12.5px] font-semibold text-[#2B2C44]">{item.title}</p>
+              <p className="truncate text-[12.5px] font-semibold text-ink">{item.title}</p>
               {item.description && (
-                <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-[#8B8BA0]">{item.description}</p>
+                <p className="mt-0.5 line-clamp-2 text-[11px] leading-relaxed text-ink-soft">{item.description}</p>
               )}
             </div>
             <button
               type="button"
               aria-label="关闭通知"
               onClick={() => setItems((prev) => prev.filter((entry) => entry.id !== item.id))}
-              className="mt-0.5 text-[#B5B5C6] transition hover:text-[#6C4AD9]"
+              className="mt-0.5 text-ink-muted transition hover:text-accent"
             >
               <X className="h-3.5 w-3.5" />
             </button>

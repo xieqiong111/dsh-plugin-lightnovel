@@ -4,6 +4,9 @@ import path from 'node:path'
 import { atomicWriteJson } from '../dist/util/json.js'
 import { createKomgaClient, normalizeKomgaUrl, readKomgaConfig } from './komga-client.mjs'
 
+const refreshModes = ['manual', 'after-sync', 'after-sync-or-scrape']
+const defaultKomgaRefreshMode = 'after-sync'
+
 const settingsPath = '/api/settings/integrations'
 const digest = (value) => createHash('sha256').update(value).digest('hex')
 
@@ -43,17 +46,25 @@ export async function loadIntegrations(settings) {
     pending = next.catch(() => undefined)
     return next
   }
+  const scraperConfigured = Boolean(settings.bangumiKomgaUrl && settings.metadataTokenFile)
+  const preferences = () => ({
+    scrapeEnabled: saved.preferences?.scrapeEnabled ?? scraperConfigured,
+    refreshMode: refreshModes.includes(saved.preferences?.refreshMode)
+      ? saved.preferences.refreshMode : defaultKomgaRefreshMode,
+  })
   const status = () => ({
     komga: {
       url: saved.komga?.url || environment.url || [...allowed][0] || '',
       allowedUrls: [...allowed],
       hasKey: Boolean(saved.komga?.apiKey || environment.apiKey),
     },
+    preferences: { ...preferences(), scraperConfigured },
     dsh: { active: Boolean(saved.dsh?.digest), createdAt: saved.dsh?.createdAt ?? null },
   })
 
   return {
     get client() { return client },
+    get preferences() { return preferences() },
     authorizeDsh(req) {
       const key = /^Bearer (studio_dsh_[A-Za-z0-9_-]{43})$/i.exec(String(req.headers.authorization ?? ''))?.[1]
       return Boolean(key && /^[a-f0-9]{64}$/.test(saved.dsh?.digest ?? '')
@@ -78,7 +89,7 @@ export async function loadIntegrations(settings) {
         return true
       }
       try {
-        const { action, url: address, apiKey } = await readBody(req)
+        const { action, url: address, apiKey, scrapeEnabled, refreshMode } = await readBody(req)
         if (action === 'save-komga') {
           let target
           try { target = normalizeKomgaUrl(address) } catch { /* invalid URL */ }
@@ -103,6 +114,17 @@ export async function loadIntegrations(settings) {
             await atomicWriteJson(file, next)
             saved = next
             client = tested
+          })
+          sendJson(res, 200, status())
+        } else if (action === 'save-komga-preferences') {
+          if (typeof scrapeEnabled !== 'boolean' || !refreshModes.includes(refreshMode)) {
+            sendError(res, 400, 'INVALID_KOMGA_PREFERENCES', '请选择有效的刮削开关和书库刷新方式。')
+            return true
+          }
+          await update(async () => {
+            const next = { ...saved, preferences: { scrapeEnabled, refreshMode } }
+            await atomicWriteJson(file, next)
+            saved = next
           })
           sendJson(res, 200, status())
         } else if (action === 'rotate-dsh' || action === 'revoke-dsh') {

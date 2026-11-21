@@ -20,7 +20,7 @@ export function MediaFilterTabs() {
   const [params, setParams] = useSearchParams()
 
   return (
-    <div role="group" aria-label="资源类型" className="mb-4 inline-flex rounded-full border border-[#EDEAF6] bg-white p-1">
+    <div role="group" aria-label="资源类型" className="mb-4 inline-flex rounded-full border border-line bg-surface p-1">
       {options.map(([type, label]) => (
         <button
           key={type}
@@ -28,7 +28,7 @@ export function MediaFilterTabs() {
           aria-pressed={selected === type}
           className={cn(
             'h-8 rounded-full px-4 text-xs transition',
-            selected === type ? 'bg-[#F1EDFE] font-semibold text-[#6C4AD9]' : 'text-[#6B6B85] hover:text-[#6C4AD9]',
+            selected === type ? 'bg-accent-soft font-semibold text-accent' : 'text-ink-soft hover:text-accent',
           )}
           onClick={() => {
             const next = new URLSearchParams(params)

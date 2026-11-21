@@ -117,7 +117,7 @@ export function TasksPage() {
 
       <MediaFilterTabs />
       {mangaTasks.error && <div className="mb-4"><MangaNotice message={`漫画下载队列不可用 · ${mangaTasks.error}`} /></div>}
-      {mangaTasks.loading && <p role="status" className="mb-3 text-xs text-[#6B6B85]"><Spinner /> 正在读取漫画队列…</p>}
+      {mangaTasks.loading && <p role="status" className="mb-3 text-xs text-ink-soft"><Spinner /> 正在读取漫画队列…</p>}
 
       <div role="group" aria-label="任务状态" className="mb-5 flex flex-wrap items-center gap-2">
         {tabs.map((item) => {
@@ -131,12 +131,12 @@ export function TasksPage() {
               className={cn(
                 'h-8 rounded-full border px-3.5 text-[11px] transition',
                 tab === item.id
-                  ? 'border-[#C4B5FB] bg-[#F1EDFE] font-semibold text-[#6C4AD9]'
-                  : 'border-[#EDEAF6] bg-white text-[#7A7A92] hover:border-[#DCD4F7] hover:text-[#6C4AD9]',
+                  ? 'border-accent-line bg-accent-soft font-semibold text-accent'
+                  : 'border-line bg-surface text-ink-soft hover:border-accent-line hover:text-accent',
               )}
             >
               {item.label}
-              <span className={cn('ml-1.5 text-[9.5px]', tab === item.id ? 'text-[#8B63F2]' : 'text-[#B5B5C6]')}>{count}</span>
+              <span className={cn('ml-1.5 text-[9.5px]', tab === item.id ? 'text-accent' : 'text-ink-muted')}>{count}</span>
             </button>
           )
         })}
@@ -167,28 +167,28 @@ export function TasksPage() {
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-start justify-between gap-2">
-                      <p className="truncate text-[13.5px] font-semibold text-[#2B2C44]">{task.title}</p>
+                      <p className="truncate text-[13.5px] font-semibold text-ink">{task.title}</p>
                       <Badge tone={meta.tone}>
                         {meta.icon}
                         {meta.label}
                       </Badge>
                     </div>
-                    <p className="mt-1 text-[10.5px] text-[#A2A2B6]">
+                    <p className="mt-1 text-[10.5px] text-ink-muted">
                       轻小说 · {entry.id} · {task.volumeLabel} · {task.chapterLabel}
                     </p>
                     {task.message && (
-                      <p className="mt-1.5 rounded-[6px] bg-[#FFF5F8] px-2 py-1 text-[9.5px] text-[#C2377B]">{task.message}</p>
+                      <p className="mt-1.5 rounded-[6px] bg-negative-soft px-2 py-1 text-[9.5px] text-negative">{task.message}</p>
                     )}
                   </div>
                 </div>
 
                 <div className="mt-4">
                   <div className="mb-1.5 flex items-center justify-between text-[10px]">
-                    <span className="text-[#A2A2B6]">
+                    <span className="text-ink-muted">
                       {task.state === 'completed' ? '已完成' : task.state === 'failed' ? '已中断' : '进度'}
                       {task.speed && <span className="ml-2 text-[#C4B5FB]">{task.speed}</span>}
                     </span>
-                    <span className="font-semibold text-[#6B6B85]">{task.percent}%</span>
+                    <span className="font-semibold text-ink-soft">{task.percent}%</span>
                   </div>
                   <Progress
                     value={task.percent}
@@ -205,7 +205,7 @@ export function TasksPage() {
                   />
                 </div>
 
-                <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[#F3F1F9] pt-3">
+                <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-line pt-3">
                   <Button variant="secondary" size="sm" onClick={() => setDetail(task)}>
                     任务详情
                   </Button>
@@ -237,7 +237,7 @@ export function TasksPage() {
                         variant="ghost"
                         size="sm"
                         icon={<Trash2 className="h-3 w-3" />}
-                        className="text-[#C2377B] hover:bg-[#FFF1F5] hover:text-[#C2377B]"
+                        className="text-negative hover:bg-negative-soft hover:text-negative"
                         onClick={() => setCancelTarget(task)}
                       >
                         取消
@@ -249,7 +249,7 @@ export function TasksPage() {
                       重试
                     </Button>
                   )}
-                  <span className="ml-auto text-[9.5px] text-[#B5B5C6]">{task.updatedAt}</span>
+                  <span className="ml-auto text-[9.5px] text-ink-muted">{task.updatedAt}</span>
                 </div>
               </Card>
             )
@@ -257,8 +257,8 @@ export function TasksPage() {
         </div>
       )}
 
-      <div className="mt-5 flex items-start gap-2 rounded-[12px] border border-[#E9E4FA] bg-[#FBFAFF] px-4 py-3 text-[10.5px] leading-relaxed text-[#8B8BA0]">
-        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#A78BFA]" />
+      <div className="mt-5 flex items-start gap-2 rounded-[12px] border border-accent-line bg-accent-soft px-4 py-3 text-[10.5px] leading-relaxed text-ink-soft">
+        <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" />
         <span>
           {IS_LIVE
             ? '轻小说支持取消和重试。漫画列表显示 Suwayomi 当前队列，下载完成的章节可在作品详情页查看。'
@@ -285,12 +285,12 @@ export function TasksPage() {
           </div>
         }
       >
-        <div className="px-6 py-5 text-[11.5px] leading-relaxed text-[#6B6B85]">
+        <div className="px-6 py-5 text-[11.5px] leading-relaxed text-ink-soft">
           <p>
-            「{cancelTarget?.title}」当前已完成 <span className="font-semibold text-[#6C4AD9]">{cancelTarget?.percent}%</span>。
+            「{cancelTarget?.title}」当前已完成 <span className="font-semibold text-accent">{cancelTarget?.percent}%</span>。
             取消后未完成的章节将被丢弃，已生成的临时文件由后端清理。
           </p>
-            <p className="mt-2 text-[10px] text-[#A2A2B6]">
+            <p className="mt-2 text-[10px] text-ink-muted">
               {IS_LIVE
                 ? '后端按任务 ID 取消，不接受文件路径参数，避免任意路径删除。'
                 : 'Mock 演示不会修改任何真实任务或文件。'}
@@ -313,7 +313,7 @@ function TaskDetailModal({ task, onClose }: { task: DownloadTask | null; onClose
                 {stateMeta[task.state].icon}
                 {stateMeta[task.state].label}
               </Badge>
-              <p className="mt-2 text-[11px] leading-relaxed text-[#8B8BA0]">
+              <p className="mt-2 text-[11px] leading-relaxed text-ink-soft">
                 {task.volumeLabel} · {task.chapterLabel}
                 {task.speed ? ` · ${task.speed}` : ''}
               </p>
@@ -323,7 +323,7 @@ function TaskDetailModal({ task, onClose }: { task: DownloadTask | null; onClose
                   tone={task.state === 'failed' ? 'rose' : task.state === 'completed' ? 'green' : 'violet'}
                   className="flex-1"
                 />
-                <span className="text-[11px] font-semibold text-[#6B6B85]">{task.percent}%</span>
+                <span className="text-[11px] font-semibold text-ink-soft">{task.percent}%</span>
               </div>
             </div>
           </div>
@@ -337,16 +337,16 @@ function TaskDetailModal({ task, onClose }: { task: DownloadTask | null; onClose
               ['预计大小', task.size ?? '—'],
               ['最近更新', task.updatedAt],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-[10px] border border-[#F1EFF8] bg-[#FBFAFE] px-3 py-2.5">
-                <p className="text-[9.5px] text-[#A2A2B6]">{label}</p>
-                <p className="mt-1 truncate font-mono text-[10.5px] text-[#3F4058]">{value}</p>
+              <div key={label} className="rounded-[10px] border border-line bg-surface-soft px-3 py-2.5">
+                <p className="text-[9.5px] text-ink-muted">{label}</p>
+                <p className="mt-1 truncate font-mono text-[10.5px] text-ink">{value}</p>
               </div>
             ))}
           </div>
 
-          <div className="mt-4 rounded-[10px] border border-[#EFEDF6] px-3.5 py-3">
-            <p className="text-[10px] font-semibold text-[#3F4058]">产物完整性</p>
-            <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-[#8B8BA0]">
+          <div className="mt-4 rounded-[10px] border border-line px-3.5 py-3">
+            <p className="text-[10px] font-semibold text-ink">产物完整性</p>
+            <div className="mt-2 flex items-center justify-between gap-2 text-[10px] text-ink-soft">
               <span className="truncate">{IS_LIVE ? (task.size ? `产物体积 ${task.size}` : '产物路径见书库') : `volume-${task.id}.epub`}</span>
               <Badge tone={task.state === 'completed' ? 'green' : 'gray'}>
                 {task.state === 'completed' ? (IS_LIVE ? '已入库' : '校验通过') : '等待生成'}
@@ -354,7 +354,7 @@ function TaskDetailModal({ task, onClose }: { task: DownloadTask | null; onClose
             </div>
           </div>
 
-          <p className="mt-3 text-[9.5px] leading-relaxed text-[#B5B5C6]">
+          <p className="mt-3 text-[9.5px] leading-relaxed text-ink-muted">
             {IS_LIVE
               ? '字段来自插件 TaskManager 记录（state / progress.percent / artifacts[].bytes），经 BFF 的 GET /api/tasks 投影，未做任何填充或伪造。'
               : '字段对齐设计契约中的 state / progress.percent / progress.chaptersDone / artifacts[].integrity，当前为 Mock 展示。'}

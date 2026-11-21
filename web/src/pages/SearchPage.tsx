@@ -140,7 +140,7 @@ export function SearchPage() {
         eyebrow="Find your next story"
         title={
           <span>
-            搜索发现 <span className="text-[14px] font-medium text-[#B5B5C6]">/ 多书源检索</span>
+            搜索发现 <span className="text-[14px] font-medium text-ink-muted">/ 多书源检索</span>
           </span>
         }
         description={
@@ -162,22 +162,22 @@ export function SearchPage() {
 
       <MediaFilterTabs />
 
-      <Card className="relative overflow-hidden rounded-[22px] border-[#E9E4FA] bg-[linear-gradient(100deg,#F6F3FF,#EFEAFF_60%,#E4DDFC)] px-5 py-5 sm:px-7 sm:py-6">
+      <Card className="relative overflow-hidden rounded-[22px] border-accent-line studio-banner px-5 py-5 sm:px-7 sm:py-6">
         <div className="pointer-events-none absolute right-0 top-0 h-full w-[280px] grid-dots opacity-30 [mask-image:linear-gradient(to_left,black,transparent)]" />
         <div className="relative">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="flex h-[52px] flex-1 items-center gap-3 rounded-full bg-white px-5 shadow-[0_14px_34px_-24px_rgba(72,52,150,0.55)] ring-1 ring-[#E7E1FA]">
-              <Search className="h-[17px] w-[17px] shrink-0 text-[#A6A6B8]" strokeWidth={1.8} />
+            <div className="flex h-[52px] flex-1 items-center gap-3 rounded-full bg-surface px-5 shadow-[0_14px_34px_-24px_rgba(72,52,150,0.55)] ring-1 ring-accent-line">
+              <Search className="h-[17px] w-[17px] shrink-0 text-ink-muted" strokeWidth={1.8} />
               <input
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={(event) => event.key === 'Enter' && !event.nativeEvent.isComposing && submit()}
                 placeholder={type === 'manga' ? '输入漫画标题…' : '输入标题、作者或关键词…'}
                 aria-label="搜索作品"
-                className="h-full min-w-0 flex-1 bg-transparent text-[13px] text-[#33344B] placeholder:text-[#ADADC0] focus:outline-none"
+                className="h-full min-w-0 flex-1 bg-transparent text-[13px] text-ink placeholder:text-ink-muted focus:outline-none"
               />
               {input && (
-                <button type="button" aria-label="清空" onClick={() => setInput('')} className="text-[#B5B5C6] hover:text-[#6C4AD9]">
+                <button type="button" aria-label="清空" onClick={() => setInput('')} className="text-ink-muted hover:text-accent">
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
@@ -192,13 +192,13 @@ export function SearchPage() {
           </div>
 
           {showNovel && <div className="mt-3.5 flex flex-wrap items-center gap-2">
-            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-[#A79FC4]">{IS_LIVE ? '示例关键词' : '热门'}</span>
+            <span className="text-[10px] font-medium uppercase tracking-[0.18em] text-ink-muted">{IS_LIVE ? '示例关键词' : '热门'}</span>
             {hotKeywords.map((tag) => (
               <button
                 key={tag}
                 type="button"
                 onClick={() => submit(tag)}
-                className="rounded-full border border-white/70 bg-white/55 px-2.5 py-1 text-[10.5px] text-[#7E7E97] backdrop-blur-sm transition hover:border-[#D8CFF7] hover:bg-white hover:text-[#6C4AD9]"
+                className="rounded-full border border-white/70 bg-surface/55 px-2.5 py-1 text-[10.5px] text-ink-soft backdrop-blur-sm transition hover:border-accent-line hover:bg-surface hover:text-accent"
               >
                 {tag}
               </button>
@@ -211,7 +211,7 @@ export function SearchPage() {
         <section className="mt-5" aria-label="轻小说搜索结果">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="mr-1 inline-flex items-center gap-1.5 text-[10.5px] text-[#A2A2B6]">
+              <span className="mr-1 inline-flex items-center gap-1.5 text-[10.5px] text-ink-muted">
                 <SlidersHorizontal className="h-3 w-3" />
                 轻小说书源
               </span>
@@ -223,8 +223,8 @@ export function SearchPage() {
                   className={cn(
                     'h-8 rounded-full border px-3.5 text-[11px] transition',
                     source === item.id
-                      ? 'border-[#C4B5FB] bg-[#F1EDFE] font-semibold text-[#6C4AD9]'
-                      : 'border-[#EDEAF6] bg-white text-[#7A7A92] hover:border-[#DCD4F7] hover:text-[#6C4AD9]',
+                      ? 'border-accent-line bg-accent-soft font-semibold text-accent'
+                      : 'border-line bg-surface text-ink-soft hover:border-accent-line hover:text-accent',
                   )}
                 >
                   {item.label}
@@ -233,8 +233,8 @@ export function SearchPage() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[10.5px] text-[#A2A2B6]">状态</span>
-              <div className="inline-flex rounded-full border border-[#EDEAF6] bg-white p-1">
+              <span className="text-[10.5px] text-ink-muted">状态</span>
+              <div className="inline-flex rounded-full border border-line bg-surface p-1">
                 {statusFilters.map((item) => (
                   <button
                     key={item.id}
@@ -242,7 +242,7 @@ export function SearchPage() {
                     onClick={() => setStatus(item.id)}
                     className={cn(
                       'h-7 rounded-full px-3 text-[11px] transition',
-                      status === item.id ? 'bg-[#F1EDFE] font-semibold text-[#6C4AD9]' : 'text-[#8B8BA0] hover:text-[#6C4AD9]',
+                      status === item.id ? 'bg-accent-soft font-semibold text-accent' : 'text-ink-soft hover:text-accent',
                     )}
                   >
                     {item.label}
@@ -253,7 +253,7 @@ export function SearchPage() {
                 <button
                   type="button"
                   onClick={reset}
-                  className="h-7 rounded-full px-2.5 text-[10.5px] text-[#A2A2B6] transition hover:bg-[#F5F2FF] hover:text-[#6C4AD9]"
+                  className="h-7 rounded-full px-2.5 text-[10.5px] text-ink-muted transition hover:bg-accent-soft hover:text-accent"
                 >
                   重置筛选
                 </button>
@@ -261,8 +261,8 @@ export function SearchPage() {
             </div>
           </div>
 
-          <div className="mt-5 flex items-center justify-between gap-3 border-t border-[#F0EEF7] pt-4">
-            <div className="flex items-center gap-2 text-[11px] text-[#8B8BA0]">
+          <div className="mt-5 flex items-center justify-between gap-3 border-t border-line pt-4">
+            <div className="flex items-center gap-2 text-[11px] text-ink-soft">
               {loading ? (
                 <>
                   <Spinner className="h-3 w-3" />
@@ -272,13 +272,13 @@ export function SearchPage() {
                 <span>输入关键词开始检索</span>
               ) : (
                 <>
-                  找到 <span className="font-semibold text-[#6C4AD9]">{result?.total ?? 0}</span> 本相关作品
-                  {keyword && <span className="text-[#B5B5C6]">· 关键词「{keyword}」</span>}
-                  <span className="text-[#B5B5C6]">· {selectedSourceLabel}</span>
+                  找到 <span className="font-semibold text-accent">{result?.total ?? 0}</span> 本相关作品
+                  {keyword && <span className="text-ink-muted">· 关键词「{keyword}」</span>}
+                  <span className="text-ink-muted">· {selectedSourceLabel}</span>
                 </>
               )}
             </div>
-            <span className="hidden items-center gap-1 text-[10px] text-[#B5B5C6] sm:flex">
+            <span className="hidden items-center gap-1 text-[10px] text-ink-muted sm:flex">
               <Info className="h-3 w-3" />
               {IS_LIVE ? '结果按相关度排序 · 来自插件书源与本地索引' : '结果按相关度排序 · Mock 数据'}
             </span>
@@ -296,7 +296,7 @@ export function SearchPage() {
           ) : loading ? (
             <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
               {Array.from({ length: 8 }).map((_, index) => (
-                <div key={index} className="rounded-[14px] border border-[#F1EFF8] bg-white p-1.5">
+                <div key={index} className="rounded-[14px] border border-line bg-surface p-1.5">
                   <div className="skeleton aspect-[3/4] w-full rounded-[10px]" />
                   <div className="space-y-2 px-1.5 py-3">
                     <div className="skeleton h-3 w-3/4 rounded-full" />
@@ -336,7 +336,7 @@ export function SearchPage() {
           )}
 
           {result?.degradedSources?.length ? (
-            <div className="mt-4 flex items-start gap-2 rounded-[12px] border border-[#F5E3BE] bg-[#FDF8EC] px-4 py-3 text-[10.5px] leading-relaxed text-[#B4791B]">
+            <div className="mt-4 flex items-start gap-2 rounded-[12px] border border-caution-line bg-caution-soft px-4 py-3 text-[10.5px] leading-relaxed text-caution">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <span>{result.degradedSources.join('；')}。降级书源的结果可能不完整。</span>
             </div>

@@ -50,6 +50,8 @@ The shortest workflow is `manga_sources` → `manga_search` → `manga_details` 
 
 For the volume tools, set `LN_VOLUME_ARCHIVE_URL` to the internal archive service and keep the Suwayomi connection configured. See [archive deployment and progress APIs](MANGA-VOLUME-CBZ.md). You can supply these service settings through a private JSON file using `LN_MANGA_CONNECTION_FILE`.
 
+For Bangumi search, metadata preview, and scoped writes to Komga series or books, see [BangumiKomga setup](BANGUMIKOMGA.md) and the `komga_bangumi_metadata` tool.
+
 For `studio_read`, generate a read-only key in Studio under **系统设置 → 服务集成**. Save it to a private file readable by DSH and set `LN_STUDIO_READ_URL` to the Studio origin and `LN_STUDIO_READ_TOKEN_FILE` to that file's path inside the DSH container. To list available operations and supported arguments, see [Studio integrations](../web/README.md#komga-api-和-dsh-只读密钥).
 
 ## Verify native loading

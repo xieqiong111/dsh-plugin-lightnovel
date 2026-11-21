@@ -48,28 +48,28 @@ export function Modal({
         aria-modal="true"
         aria-label={typeof title === 'string' ? title : '对话框'}
         className={cn(
-          'relative max-h-[92vh] w-full overflow-hidden rounded-t-[24px] bg-white shadow-[0_40px_120px_-40px_rgba(30,31,53,0.55)] animate-fade-up sm:rounded-[24px]',
+          'relative max-h-[92vh] w-full overflow-hidden rounded-t-[24px] bg-surface shadow-[0_40px_120px_-40px_rgba(30,31,53,0.55)] animate-fade-up sm:rounded-[24px]',
           width,
         )}
       >
         {(title || eyebrow) && (
-          <div className="flex items-start justify-between gap-4 border-b border-[#F2F0F8] px-6 pb-4 pt-5">
+          <div className="flex items-start justify-between gap-4 border-b border-line px-6 pb-4 pt-5">
             <div>
-              {eyebrow && <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#A78BFA]">{eyebrow}</p>}
-              {title && <h3 className="text-[18px] font-bold tracking-[-0.01em] text-[#1E1F35]">{title}</h3>}
+              {eyebrow && <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-accent">{eyebrow}</p>}
+              {title && <h3 className="text-[18px] font-bold tracking-[-0.01em] text-ink">{title}</h3>}
             </div>
             <button
               type="button"
               onClick={onClose}
               aria-label="关闭"
-              className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full text-[#9A9AAE] transition hover:bg-[#F4F1FD] hover:text-[#6C4AD9]"
+              className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-full text-ink-muted transition hover:bg-accent-soft hover:text-accent"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
         )}
         <div className="max-h-[calc(92vh-140px)] overflow-y-auto">{children}</div>
-        {footer && <div className="border-t border-[#F2F0F8] bg-[#FBFAFE] px-6 py-4">{footer}</div>}
+        {footer && <div className="border-t border-line bg-surface-soft px-6 py-4">{footer}</div>}
       </div>
     </div>
   )

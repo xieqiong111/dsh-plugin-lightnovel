@@ -1,5 +1,5 @@
 /**
- * Read-only server-side adapter for Komga's REST API.
+ * Server-side adapter for Komga's REST API.
  *
  * The configured base URL may include a reverse-proxy context path. Credentials
  * are attached only to these fixed API endpoints; redirects are rejected.
@@ -309,6 +309,59 @@ export function createKomgaClient(config = readKomgaConfig(), options = {}) {
     if (response.status !== 202) throw new KomgaError('INVALID_RESPONSE', 'Komga did not accept the library scan', 502)
   }
 
+  function metadataPath(scope, id) {
+    const collection = scope === 'series' ? 'series' : 'books'
+    return `/api/v1/${collection}/${safeId(id, 'Komga ID')}`
+  }
+
+  async function metadataBooks(seriesId, page) {
+    const params = new URLSearchParams({ page: String(page), size: '30', sort: 'metadata.numberSort,asc' })
+    const payload = await requestJson(`/api/v1/books/list?${params}`, {
+      method: 'POST', body: { condition: { allOf: [
+        { seriesId: { operator: 'is', value: safeId(seriesId, 'seriesId') } },
+        { deleted: { operator: 'isFalse' } },
+      ] } },
+    })
+    if (!payload || !Array.isArray(payload.content) || payload.content.length > 30) {
+      throw new KomgaError('INVALID_RESPONSE', 'Komga returned an invalid book page', 502)
+    }
+    return {
+      books: payload.content.map((item) => {
+        if (item?.seriesId !== seriesId) throw new KomgaError('INVALID_RESPONSE', 'Komga returned a book from another series', 502)
+        return {
+          id: requiredResponseId(item.id, 'book ID'),
+          name: requiredText(item.name, 'book name'),
+          title: requiredText(item.metadata?.title, 'book title'),
+          number: optionalText(item.metadata?.number, 'book number'),
+        }
+      }),
+      page: requiredCount(payload.number, 'page number'),
+      last: requiredBoolean(payload.last, 'page last flag'),
+    }
+  }
+
+  async function metadataTarget(scope, id) {
+    const item = await requestJson(metadataPath(scope, id))
+    if (!item || item.id !== id || !item.metadata || typeof item.metadata !== 'object' ||
+        typeof item.name !== 'string' || item.deleted === true) {
+      throw new KomgaError('INVALID_RESPONSE', 'Komga did not return the requested active item', 502)
+    }
+    return {
+      id: item.id,
+      name: item.name,
+      libraryId: requiredResponseId(item.libraryId, 'library ID'),
+      seriesId: scope === 'series' ? id : requiredResponseId(item.seriesId, 'series ID'),
+      metadata: item.metadata,
+    }
+  }
+
+  async function patchMetadata(scope, id, body) {
+    const { response } = await request(`${metadataPath(scope, id)}/metadata`, {
+      method: 'PATCH', body, maxBytes: 16 * 1024,
+    })
+    if (response.status !== 204) throw new KomgaError('INVALID_RESPONSE', 'Komga did not confirm the metadata update', 502)
+  }
+
   async function status() {
     if (configError) throw configError
     if (!baseUrl) return { configured: false, connected: false }
@@ -316,5 +369,5 @@ export function createKomgaClient(config = readKomgaConfig(), options = {}) {
     return { configured: true, connected: true, libraryCount: result.libraries.length }
   }
 
-  return { configured, libraries, series, thumbnail, status, scanLibrary }
+  return { configured, libraries, series, thumbnail, status, scanLibrary, metadataBooks, metadataTarget, patchMetadata }
 }

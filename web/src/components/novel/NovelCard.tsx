@@ -19,8 +19,8 @@ export function NovelCard({
   return (
     <div
       className={cn(
-        'group cursor-pointer rounded-[14px] border border-[#F1EFF8] bg-white p-[6px] transition-all duration-300',
-        'hover:-translate-y-1 hover:border-[#E3DCF8] hover:shadow-[0_18px_34px_-20px_rgba(78,54,168,0.35)]',
+        'group cursor-pointer rounded-[14px] border border-line bg-surface p-[6px] transition-all duration-300',
+        'hover:-translate-y-1 hover:border-accent-line hover:shadow-[0_18px_34px_-20px_rgba(78,54,168,0.35)]',
         className,
       )}
       onClick={() => onOpen?.(novel)}
@@ -40,17 +40,17 @@ export function NovelCard({
         className={cn('aspect-[3/4] w-full rounded-[10px] transition-transform duration-500 group-hover:scale-[1.012]', compact && 'rounded-[8px]')}
       />
       <div className={cn('px-1.5 pb-1 pt-3', compact && 'pt-2.5')}>
-        <p className="truncate text-[13.5px] font-bold tracking-[-0.005em] text-[#25263C] transition-colors group-hover:text-[#5A3FC0]">
+        <p className="truncate text-[13.5px] font-bold tracking-[-0.005em] text-ink transition-colors group-hover:text-accent">
           {novel.title}
         </p>
-        <p className="mt-1 truncate text-[11px] text-[#A2A2B6]">{novel.author}</p>
+        <p className="mt-1 truncate text-[11px] text-ink-muted">{novel.author}</p>
         <div className="mt-2.5 flex items-center justify-between gap-2 text-[10.5px]">
-          <span className="truncate text-[#8F8FA4]">
+          <span className="truncate text-ink-muted">
             {novel.volumes} 卷
             <span className="hidden 2xl:inline"> · {novel.source}</span>
           </span>
-          <span className={cn('flex shrink-0 items-center gap-1', completed ? 'text-[#7C5CE8]' : unknown ? 'text-[#9A94B5]' : 'text-[#0B9E74]')}>
-            <span className={cn('h-1.5 w-1.5 rounded-full', completed ? 'bg-[#8B63F2]' : unknown ? 'bg-[#B5B5C6]' : 'bg-[#10B981]')} />
+          <span className={cn('flex shrink-0 items-center gap-1', completed ? 'text-accent' : unknown ? 'text-ink-muted' : 'text-positive')}>
+            <span className={cn('h-1.5 w-1.5 rounded-full', completed ? 'bg-[#8B63F2]' : unknown ? 'bg-track' : 'bg-[#10B981]')} />
             {statusLabel}
           </span>
         </div>

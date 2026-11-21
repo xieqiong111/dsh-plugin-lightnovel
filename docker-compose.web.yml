@@ -80,6 +80,8 @@ services:
       LN_KOMGA_API_KEY: "${LN_KOMGA_API_KEY:-}"
       LN_KOMGA_USERNAME: "${LN_KOMGA_USERNAME:-}"
       LN_KOMGA_PASSWORD: "${LN_KOMGA_PASSWORD:-}"
+      LN_BANGUMIKOMGA_URL: "${LN_BANGUMIKOMGA_URL:-}"
+      LN_STUDIO_METADATA_TOKEN_FILE: "${LN_STUDIO_METADATA_TOKEN_FILE:-}"
       LN_KOMGA_TIMEOUT_MS: "${LN_KOMGA_TIMEOUT_MS:-8000}"
 
     ports:
@@ -128,6 +130,22 @@ services:
         max-size: "10m"
         max-file: "3"
 
+    networks:
+      - default
+
+  bangumikomga:
+    profiles: ["metadata"]
+    build:
+      context: ./docker/bangumikomga
+    platform: "${LN_WEB_PLATFORM:-linux/amd64}"
+    restart: unless-stopped
+    environment:
+      BANGUMI_ACCESS_TOKEN: "${BANGUMI_ACCESS_TOKEN:-}"
+    read_only: true
+    tmpfs:
+      - /app/logs:size=8m,mode=1777
+    security_opt:
+      - no-new-privileges:true
     networks:
       - default
 

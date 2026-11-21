@@ -14,11 +14,11 @@ const buttonVariants: Record<NonNullable<ButtonProps['variant']>, string> = {
   primary:
     'bg-gradient-to-r from-[#8B6BF0] via-[#7E5EE9] to-[#6E4DE0] text-white shadow-[0_10px_24px_-10px_rgba(114,79,232,0.75)] hover:brightness-[1.05] hover:shadow-[0_14px_28px_-10px_rgba(114,79,232,0.8)] active:brightness-95',
   secondary:
-    'border border-[#E7E3F5] bg-white text-[#5B5B73] hover:border-[#D8D0F2] hover:bg-[#FBFAFF] hover:text-[#3F2A8C]',
-  ghost: 'text-[#6B6B85] hover:bg-[#F4F1FD] hover:text-[#5A3FC0]',
-  soft: 'bg-[#F1EDFE] text-[#6C4AD9] hover:bg-[#E7DFFD]',
-  danger: 'bg-[#FFF1F2] text-[#E11D48] hover:bg-[#FFE4E6]',
-  success: 'bg-[#ECFDF5] text-[#047857] hover:bg-[#D1FAE5]',
+    'border border-line bg-surface text-ink-soft hover:border-accent-line hover:bg-accent-soft hover:text-accent',
+  ghost: 'text-ink-soft hover:bg-accent-soft hover:text-accent',
+  soft: 'bg-accent-soft text-accent hover:bg-accent-soft',
+  danger: 'bg-negative-soft text-negative hover:bg-negative-soft',
+  success: 'bg-positive-soft text-positive hover:bg-positive-soft',
 }
 
 const buttonSizes: Record<NonNullable<ButtonProps['size']>, string> = {
@@ -71,7 +71,7 @@ export function Card({
   return (
     <div
       className={cn(
-        'rounded-[20px] border border-[#EFEDF6] bg-white shadow-card',
+        'rounded-[20px] border border-line bg-surface shadow-card',
         hoverable && 'transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lift',
         className,
       )}
@@ -92,11 +92,11 @@ export function Badge({
   children: React.ReactNode
 }) {
   const tones = {
-    violet: 'bg-[#F1EDFE] text-[#6C4AD9]',
-    green: 'bg-[#ECFDF5] text-[#0B9E74]',
-    amber: 'bg-[#FEF6E7] text-[#B4791B]',
-    rose: 'bg-[#FFF0F6] text-[#C2377B]',
-    gray: 'bg-[#F3F3F8] text-[#7A7A92]',
+    violet: 'bg-accent-soft text-accent',
+    green: 'bg-positive-soft text-positive',
+    amber: 'bg-caution-soft text-caution',
+    rose: 'bg-negative-soft text-negative',
+    gray: 'bg-surface-soft text-ink-soft',
   }
   return (
     <span
@@ -127,7 +127,7 @@ export function Progress({
     gray: 'from-[#C9C9DA] to-[#A5A5BB]',
   }
   return (
-    <div className={cn('h-[5px] w-full overflow-hidden rounded-full bg-[#F0EDF9]', className)}>
+    <div className={cn('h-[5px] w-full overflow-hidden rounded-full bg-accent-soft', className)}>
       <div
         className={cn('h-full rounded-full bg-gradient-to-r transition-[width] duration-500 ease-out', fill[tone])}
         style={{ width: `${Math.max(0, Math.min(100, value))}%` }}
@@ -151,7 +151,7 @@ export function SectionTitle({
     <div className={cn('flex items-center justify-between gap-4', className)}>
       <div className="flex items-center gap-2.5">
         {accent && <span className="h-[18px] w-[3px] rounded-full bg-gradient-to-b from-[#A78BFA] to-[#6C4AD9]" />}
-        <h2 className="text-[20px] font-bold tracking-[-0.01em] text-[#1E1F35]">{title}</h2>
+        <h2 className="text-[20px] font-bold tracking-[-0.01em] text-ink">{title}</h2>
       </div>
       {right}
     </div>
@@ -171,12 +171,12 @@ export function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-[#F5F2FF] text-[#8B63F2]">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-accent-soft text-accent">
         {icon}
       </div>
       <div>
-        <p className="text-[14px] font-semibold text-[#2B2C44]">{title}</p>
-        {description && <p className="mt-1 max-w-[320px] text-[12px] leading-relaxed text-[#9A9AAE]">{description}</p>}
+        <p className="text-[14px] font-semibold text-ink">{title}</p>
+        {description && <p className="mt-1 max-w-[320px] text-[12px] leading-relaxed text-ink-muted">{description}</p>}
       </div>
       {action}
     </div>
@@ -193,7 +193,7 @@ export function IconTile({
   return (
     <span
       className={cn(
-        'flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] text-[#7E5EE9]',
+        'flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] text-accent',
         className,
       )}
     >

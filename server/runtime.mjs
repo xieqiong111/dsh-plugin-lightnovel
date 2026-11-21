@@ -83,6 +83,8 @@ export function readSettings(env = process.env) {
     mangaStorageLabel: env.LN_MANGA_STORAGE_LABEL || '',
     mangaCredentialsConfigured: Boolean(suwayomi.username || suwayomi.password),
     komgaConfig: komga,
+    bangumiKomgaUrl: env.LN_BANGUMIKOMGA_URL || '',
+    metadataTokenFile: env.LN_STUDIO_METADATA_TOKEN_FILE || '',
     komgaAllowedUrls: asList(env.LN_KOMGA_ALLOWED_URLS, []),
     komgaCredentialsConfigured: Boolean(komga.apiKey || komga.username || komga.password),
     host: env.LN_BFF_HOST || '127.0.0.1',

@@ -128,7 +128,7 @@ export function NovelDetailPage() {
           <span className="flex items-center gap-3">
             <Link
               to="/search"
-              className="flex h-8 w-8 items-center justify-center rounded-full border border-[#EFEDF6] bg-white text-[#8B8BA0] transition hover:text-[#6C4AD9]"
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-surface text-ink-soft transition hover:text-accent"
               aria-label="返回搜索"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -162,7 +162,7 @@ export function NovelDetailPage() {
         }
       />
 
-      <Card className="relative overflow-hidden border-[#E9E4FA] bg-[linear-gradient(110deg,#F7F4FF,#F0ECFF_55%,#E6E0FD)] p-5 sm:p-7">
+      <Card className="relative overflow-hidden border-accent-line studio-banner p-5 sm:p-7">
         <div className="pointer-events-none absolute -right-12 -top-16 h-64 w-64 rounded-full border border-white/60" />
         <div className="relative flex flex-col gap-6 sm:flex-row">
           <div className="w-[168px] shrink-0 self-center sm:self-start">
@@ -180,53 +180,53 @@ export function NovelDetailPage() {
                 {novel.status === 'completed' ? '已完结' : novel.status === 'ongoing' ? '连载中' : novel.statusText || '状态未知'}
               </Badge>
               <Badge tone="gray">{novel.source}</Badge>
-              <Badge tone="violet" className="bg-white/70">
+              <Badge tone="violet" className="bg-surface/70">
                 EPUB
               </Badge>
             </div>
-            <h2 className="mt-3 text-[26px] font-bold leading-tight tracking-[-0.02em] text-[#1E1F35]">{novel.title}</h2>
-            <p className="mt-2 text-[12px] text-[#73738C]">
+            <h2 className="mt-3 text-[26px] font-bold leading-tight tracking-[-0.02em] text-ink">{novel.title}</h2>
+            <p className="mt-2 text-[12px] text-ink-soft">
               {novel.author}
-              <span className="mx-2 text-[#B5B5C6]">·</span>
+              <span className="mx-2 text-ink-muted">·</span>
               由 {novel.source} 提供
             </p>
 
-            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[10.5px] text-[#7A7A92]">
+            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-[10.5px] text-ink-soft">
               <span className="flex items-center gap-1.5">
-                <Star className="h-3 w-3 text-[#F59E0B]" />
+                <Star className="h-3 w-3 text-caution" />
                 {novel.rating > 0 ? `${novel.rating.toFixed(1)} 评分` : '暂无评分'}
               </span>
               <span className="flex items-center gap-1.5">
-                <Layers className="h-3 w-3 text-[#A78BFA]" />
+                <Layers className="h-3 w-3 text-accent" />
                 共 {novel.volumes} 卷
               </span>
               <span className="flex items-center gap-1.5">
-                <Calendar className="h-3 w-3 text-[#A78BFA]" />
+                <Calendar className="h-3 w-3 text-accent" />
                 更新于 {novel.updatedAt}
               </span>
               <span className="flex items-center gap-1.5">
-                <Link2 className="h-3 w-3 text-[#A78BFA]" />
+                <Link2 className="h-3 w-3 text-accent" />
                 {novel.id}
               </span>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-1.5">
               {novel.tags.map((tag) => (
-                <span key={tag} className="rounded-full border border-white/70 bg-white/60 px-2.5 py-1 text-[10px] text-[#7566AE] backdrop-blur-sm">
+                <span key={tag} className="rounded-full border border-white/70 bg-surface/60 px-2.5 py-1 text-[10px] text-accent backdrop-blur-sm">
                   #{tag}
                 </span>
               ))}
             </div>
 
-            <p className="mt-4 max-w-[760px] text-[11.5px] leading-[1.9] text-[#6B6B85]">{novel.summary}</p>
+            <p className="mt-4 max-w-[760px] text-[11.5px] leading-[1.9] text-ink-soft">{novel.summary}</p>
           </div>
         </div>
       </Card>
 
       <div className="mt-5 grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
         <Card className="p-6">
-          <SectionTitle title="分卷列表" right={<span className="text-[10.5px] text-[#A2A2B6]">共 {volumes.length} 卷</span>} />
-          <p className="mt-2 flex items-start gap-1.5 text-[10.5px] leading-relaxed text-[#9C9CB0]">
+          <SectionTitle title="分卷列表" right={<span className="text-[10.5px] text-ink-muted">共 {volumes.length} 卷</span>} />
+          <p className="mt-2 flex items-start gap-1.5 text-[10.5px] leading-relaxed text-ink-muted">
             <Info className="mt-[1px] h-3 w-3 shrink-0 text-[#C4B5FB]" />
             每卷将单独生成 EPUB，或在右侧开启合并后打包为单文件。
           </p>
@@ -234,9 +234,9 @@ export function NovelDetailPage() {
             <VolumeSelector volumes={volumes} selected={selected} onChange={setSelected} />
           </div>
 
-          <div className="mt-5 rounded-[12px] border border-[#EFEDF6] bg-[#FBFAFE] p-4">
-            <p className="text-[11px] font-semibold text-[#3F4058]">章节命名</p>
-            <p className="mt-1 text-[10px] leading-relaxed text-[#A2A2B6]">
+          <div className="mt-5 rounded-[12px] border border-line bg-surface-soft p-4">
+            <p className="text-[11px] font-semibold text-ink">章节命名</p>
+            <p className="mt-1 text-[10px] leading-relaxed text-ink-muted">
               开启「添加章节标题」后，生成的 EPUB 目录会保留原站章节序号与标题；关闭则仅保留正文。
             </p>
           </div>
@@ -260,18 +260,18 @@ export function NovelDetailPage() {
               />
             </div>
 
-            <div className="mt-4 space-y-2 rounded-[12px] bg-[#FBFAFE] p-3 text-[10.5px] text-[#8B8BA0]">
+            <div className="mt-4 space-y-2 rounded-[12px] bg-surface-soft p-3 text-[10.5px] text-ink-soft">
               <div className="flex items-center justify-between">
                 <span>已选分卷</span>
-                <span className="font-semibold text-[#6C4AD9]">{selected.length} 卷</span>
+                <span className="font-semibold text-accent">{selected.length} 卷</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>输出格式</span>
-                <span className="text-[#3F4058]">EPUB 3</span>
+                <span className="text-ink">EPUB 3</span>
               </div>
               <div className="flex items-center justify-between">
                 <span>预计体积</span>
-                <span className="text-[#3F4058]">≈ {(selected.length * 3.2).toFixed(1)} MB</span>
+                <span className="text-ink">≈ {(selected.length * 3.2).toFixed(1)} MB</span>
               </div>
             </div>
 
@@ -284,8 +284,8 @@ export function NovelDetailPage() {
             >
               创建下载任务
             </Button>
-            <p className="mt-2.5 flex items-center justify-center gap-1.5 text-[9.5px] text-[#B5B5C6]">
-              <CheckCircle2 className="h-3 w-3 text-[#10B981]" />
+            <p className="mt-2.5 flex items-center justify-center gap-1.5 text-[9.5px] text-ink-muted">
+              <CheckCircle2 className="h-3 w-3 text-positive" />
               任务为异步执行，可在任务页取消
             </p>
           </Card>
@@ -298,7 +298,7 @@ export function NovelDetailPage() {
               <MetaRow label="详情接口" value="GET /api/novels/:id" mono />
               <MetaRow label="分卷接口" value="GET /api/novels/:id/volumes" mono />
             </div>
-            <p className="mt-3 rounded-[8px] bg-[#FDF8EC] px-2.5 py-2 text-[9.5px] leading-relaxed text-[#B4791B]">
+            <p className="mt-3 rounded-[8px] bg-caution-soft px-2.5 py-2 text-[9.5px] leading-relaxed text-caution">
               {IS_LIVE
                 ? '上述接口由 server/serve.mjs 提供，直接调用 PluginRuntime，结果来自插件书源与本地索引。'
                 : '上述接口在当前 Mock 原型中尚未实现，结果来自本地演示数据。'}
@@ -329,17 +329,17 @@ function ToggleRow({
       aria-checked={checked}
       className={cn(
         'flex w-full items-center justify-between gap-3 rounded-[10px] border px-3 py-2.5 text-left transition',
-        checked ? 'border-[#DDD4FA] bg-[#FBFAFF]' : 'border-[#EFEDF6] bg-white hover:bg-[#FBFAFE]',
+        checked ? 'border-accent-line bg-accent-soft' : 'border-line bg-surface hover:bg-surface-soft',
       )}
     >
       <span>
-        <span className="block text-[11.5px] font-semibold text-[#3F4058]">{label}</span>
-        <span className="mt-0.5 block text-[9.5px] text-[#A2A2B6]">{description}</span>
+        <span className="block text-[11.5px] font-semibold text-ink">{label}</span>
+        <span className="mt-0.5 block text-[9.5px] text-ink-muted">{description}</span>
       </span>
       <span
         className={cn(
           'relative h-[18px] w-[32px] shrink-0 rounded-full transition-colors duration-200',
-          checked ? 'bg-[#7E5EE9]' : 'bg-[#E5E1F1]',
+          checked ? 'bg-[#7E5EE9]' : 'bg-track',
         )}
       >
         <span
@@ -356,8 +356,8 @@ function ToggleRow({
 function MetaRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="shrink-0 text-[#A2A2B6]">{label}</span>
-      <span className={cn('truncate text-right text-[#5B5B73]', mono && 'font-mono text-[9.5px]')}>{value}</span>
+      <span className="shrink-0 text-ink-muted">{label}</span>
+      <span className={cn('truncate text-right text-ink-soft', mono && 'font-mono text-[9.5px]')}>{value}</span>
     </div>
   )
 }

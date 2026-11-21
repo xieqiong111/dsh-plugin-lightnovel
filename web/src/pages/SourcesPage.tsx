@@ -120,9 +120,9 @@ export function SourcesPage() {
       />
 
       <div className="mb-5"><MangaHealthPanel showSources /></div>
-      <h2 className="mb-3 text-lg font-bold text-[#2B2C44]">轻小说书源</h2>
-      <div className="mb-5 flex items-start gap-2 rounded-[12px] border border-[#E9E4FA] bg-[#FBFAFF] px-4 py-3 text-[10.5px] leading-relaxed text-[#8B8BA0]">
-        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#A78BFA]" />
+      <h2 className="mb-3 text-lg font-bold text-ink">轻小说书源</h2>
+      <div className="mb-5 flex items-start gap-2 rounded-[12px] border border-accent-line bg-accent-soft px-4 py-3 text-[10.5px] leading-relaxed text-ink-soft">
+        <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" />
         <span>
           {IS_LIVE
             ? '开关仅作为前端占位，不会修改插件运行时。公开源若未提供可用的关键词搜索端点，会默认不发起实时搜索并如实标注降级，不会伪造命中。'
@@ -131,7 +131,7 @@ export function SourcesPage() {
       </div>
 
       {loading && sources.length === 0 ? (
-        <Card className="flex items-center gap-2 p-8 text-[11px] text-[#8B8BA0]"><Spinner className="h-4 w-4" />正在读取书源配置…</Card>
+        <Card className="flex items-center gap-2 p-8 text-[11px] text-ink-soft"><Spinner className="h-4 w-4" />正在读取书源配置…</Card>
       ) : loadError && sources.length === 0 ? (
         <Card><EmptyState icon={<AlertTriangle className="h-6 w-6" />} title="书源读取失败" description={loadError} action={<Button variant="soft" size="sm" onClick={() => void reload()}>重试</Button>} /></Card>
       ) : (
@@ -141,20 +141,20 @@ export function SourcesPage() {
           return (
             <Card key={source.id} hoverable className="p-5">
               <div className="flex items-start gap-3">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#F6F3FF] text-[#7E5EE9]">
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-accent-soft text-accent">
                   <Globe2 className="h-[19px] w-[19px]" strokeWidth={1.7} />
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-[13.5px] font-semibold text-[#2B2C44]">{source.name}</p>
+                    <p className="text-[13.5px] font-semibold text-ink">{source.name}</p>
                     <Badge tone={meta.tone}>
                       <span className={cn('h-1.5 w-1.5 rounded-full', meta.dot)} />
                       {meta.label}
                     </Badge>
                     {!source.searchable && <Badge tone="gray">不可搜索</Badge>}
                   </div>
-                  <p className="mt-1 font-mono text-[9.5px] text-[#A2A2B6]">{source.host}</p>
-                  <p className="mt-2 text-[10.5px] leading-relaxed text-[#7A7A92]">{source.description}</p>
+                  <p className="mt-1 font-mono text-[9.5px] text-ink-muted">{source.host}</p>
+                  <p className="mt-2 text-[10.5px] leading-relaxed text-ink-soft">{source.description}</p>
                 </div>
                 <button
                   type="button"
@@ -167,7 +167,7 @@ export function SourcesPage() {
                   }}
                   className={cn(
                     'relative mt-1 h-[18px] w-[32px] shrink-0 rounded-full transition-colors',
-                    enabled[source.id] ? 'bg-[#7E5EE9]' : 'bg-[#E5E1F1]',
+                    enabled[source.id] ? 'bg-[#7E5EE9]' : 'bg-track',
                   )}
                 >
                   <span
@@ -180,27 +180,27 @@ export function SourcesPage() {
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-2.5">
-                <div className="rounded-[10px] border border-[#F1EFF8] bg-[#FBFAFE] px-3 py-2.5">
-                  <p className="flex items-center gap-1.5 text-[9.5px] text-[#A2A2B6]">
-                    <Zap className="h-3 w-3 text-[#A78BFA]" />
+                <div className="rounded-[10px] border border-line bg-surface-soft px-3 py-2.5">
+                  <p className="flex items-center gap-1.5 text-[9.5px] text-ink-muted">
+                    <Zap className="h-3 w-3 text-accent" />
                     平均延迟
                   </p>
-                  <p className="mt-1 text-[15px] font-bold text-[#25263C]">
+                  <p className="mt-1 text-[15px] font-bold text-ink">
                     {source.latencyMs ?? '—'}
-                    <span className="ml-1 text-[9px] font-normal text-[#A2A2B6]">ms</span>
+                    <span className="ml-1 text-[9px] font-normal text-ink-muted">ms</span>
                   </p>
                 </div>
-                <div className="rounded-[10px] border border-[#F1EFF8] bg-[#FBFAFE] px-3 py-2.5">
-                  <p className="flex items-center gap-1.5 text-[9.5px] text-[#A2A2B6]">
-                    <Activity className="h-3 w-3 text-[#A78BFA]" />
+                <div className="rounded-[10px] border border-line bg-surface-soft px-3 py-2.5">
+                  <p className="flex items-center gap-1.5 text-[9.5px] text-ink-muted">
+                    <Activity className="h-3 w-3 text-accent" />
                     成功率
                   </p>
-                  <span className="mt-1 block text-[15px] font-bold leading-none text-[#25263C]">
+                  <span className="mt-1 block text-[15px] font-bold leading-none text-ink">
                     {source.successRate ?? '—'}
-                    <span className="ml-0.5 text-[9px] font-normal text-[#A2A2B6]">%</span>
+                    <span className="ml-0.5 text-[9px] font-normal text-ink-muted">%</span>
                   </span>
                   <div className="mt-1.5 flex items-center gap-2">
-                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#F0EDF9]">
+                    <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-accent-soft">
                       <span
                         className={cn(
                           'block h-full rounded-full',
@@ -213,8 +213,8 @@ export function SourcesPage() {
                 </div>
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#F5F3FA] pt-3">
-                <span className="text-[9.5px] text-[#A2A2B6]">{source.note}</span>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
+                <span className="text-[9.5px] text-ink-muted">{source.note}</span>
                 <div className="flex items-center gap-1.5">
                   <Button variant="ghost" size="sm" onClick={() => setLogSource(source)}>
                     诊断日志
@@ -235,7 +235,7 @@ export function SourcesPage() {
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[560px] text-left text-[10.5px]">
             <thead>
-              <tr className="border-b border-[#F3F1F9] text-[9.5px] text-[#A2A2B6]">
+              <tr className="border-b border-line text-[9.5px] text-ink-muted">
                 <th className="pb-2 font-medium">书源</th>
                 <th className="pb-2 font-medium">关键词搜索</th>
                 <th className="pb-2 font-medium">URL 直达</th>
@@ -244,19 +244,19 @@ export function SourcesPage() {
                 <th className="pb-2 font-medium">状态</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#F6F4FB]">
+            <tbody className="divide-y divide-line">
               {sources.map((source) => (
                 <tr key={source.id}>
-                  <td className="py-2.5 font-medium text-[#3F4058]">{source.name}</td>
-                  <td className="py-2.5 text-[#8B8BA0]">{source.searchable ? '✓ 已支持' : '— 受限'}</td>
-                  <td className="py-2.5 text-[#8B8BA0]">{IS_LIVE ? '✓ BFF 已提供' : '✓ 计划中'}</td>
-                  <td className="py-2.5 text-[#8B8BA0]">{IS_LIVE ? '✓ BFF 已提供' : '✓ 计划中'}</td>
-                  <td className="py-2.5 text-[#8B8BA0]">{IS_LIVE ? '✓ BFF 已提供' : '✓ 计划中'}</td>
+                  <td className="py-2.5 font-medium text-ink">{source.name}</td>
+                  <td className="py-2.5 text-ink-soft">{source.searchable ? '✓ 已支持' : '— 受限'}</td>
+                  <td className="py-2.5 text-ink-soft">{IS_LIVE ? '✓ BFF 已提供' : '✓ 计划中'}</td>
+                  <td className="py-2.5 text-ink-soft">{IS_LIVE ? '✓ BFF 已提供' : '✓ 计划中'}</td>
+                  <td className="py-2.5 text-ink-soft">{IS_LIVE ? '✓ BFF 已提供' : '✓ 计划中'}</td>
                   <td className="py-2.5">
                     <span
                       className={cn(
                         'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px]',
-                        source.state === 'online' ? 'bg-[#ECFDF5] text-[#0B9E74]' : 'bg-[#FEF6E7] text-[#B4791B]',
+                        source.state === 'online' ? 'bg-positive-soft text-positive' : 'bg-caution-soft text-caution',
                       )}
                     >
                       {source.state === 'online' ? <CheckCircle2 className="h-2.5 w-2.5" /> : <AlertTriangle className="h-2.5 w-2.5" />}
@@ -279,7 +279,7 @@ export function SourcesPage() {
       >
         <div className="p-5">
           <div className="flex items-center justify-between pb-3">
-            <p className="text-[10px] text-[#A2A2B6]">{IS_LIVE ? '运行时配置快照' : '最近 5 条 · Mock 输出'}</p>
+            <p className="text-[10px] text-ink-muted">{IS_LIVE ? '运行时配置快照' : '最近 5 条 · Mock 输出'}</p>
             <Badge tone="gray">只读</Badge>
           </div>
           <pre className="max-h-[320px] overflow-auto rounded-[12px] bg-[#1B1C3B] p-4 font-mono text-[10px] leading-[1.9] text-[#C9C6E8]">
@@ -299,7 +299,7 @@ export function SourcesPage() {
                   '[warn] 真实网络请求未接入；以上数据来自前端 Mock',
                 ].join('\n')}
           </pre>
-          <p className="mt-3 text-[9.5px] leading-relaxed text-[#A2A2B6]">
+          <p className="mt-3 text-[9.5px] leading-relaxed text-ink-muted">
             {IS_LIVE
               ? '书源状态来自 GET /api/sources（插件 registry 配置）。为避免误导，不提供伪造的延迟与成功率，也不把 DSH 管理接口暴露到公网。'
               : '日志接口对应 GET /api/logs?limit=50，目前尚未实现，不应把 DSH 管理接口直接暴露到公网。'}
@@ -307,13 +307,13 @@ export function SourcesPage() {
         </div>
       </Modal>
 
-      <div className="mt-5 flex items-center justify-between rounded-[12px] border border-[#EFEDF6] bg-white px-4 py-3 text-[10px] text-[#A2A2B6]">
+      <div className="mt-5 flex items-center justify-between rounded-[12px] border border-line bg-surface px-4 py-3 text-[10px] text-ink-muted">
         <span>源规则维护文档</span>
         <a
           href="https://github.com/xieqiong111/dsh-plugin-lightnovel"
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1 text-[#6C4AD9] hover:underline"
+          className="inline-flex items-center gap-1 text-accent hover:underline"
         >
           GitHub 仓库
           <ExternalLink className="h-3 w-3" />

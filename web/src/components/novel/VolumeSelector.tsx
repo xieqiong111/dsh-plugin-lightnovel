@@ -24,20 +24,20 @@ export function VolumeSelector({
         <button
           type="button"
           onClick={() => onChange(allSelected ? [] : volumes.map((volume) => volume.id))}
-          className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-[#6C4AD9] transition hover:text-[#5738B8]"
+          className="inline-flex items-center gap-1.5 text-[11.5px] font-medium text-accent transition hover:text-accent"
         >
           <span
             className={cn(
               'flex h-4 w-4 items-center justify-center rounded-[5px] border transition',
-              allSelected ? 'border-[#7E5EE9] bg-[#7E5EE9] text-white' : 'border-[#DCD7EC] bg-white text-transparent',
+              allSelected ? 'border-[#7E5EE9] bg-[#7E5EE9] text-white' : 'border-accent-line bg-surface text-transparent',
             )}
           >
-            {allSelected ? <Check className="h-2.5 w-2.5" /> : selected.length > 0 ? <Minus className="h-2.5 w-2.5 text-[#7E5EE9]" /> : null}
+            {allSelected ? <Check className="h-2.5 w-2.5" /> : selected.length > 0 ? <Minus className="h-2.5 w-2.5 text-accent" /> : null}
           </span>
           全选分卷
         </button>
-        <span className="text-[10.5px] text-[#A2A2B6]">
-          已选 <span className="font-semibold text-[#6C4AD9]">{selected.length}</span> / {volumes.length} 卷
+        <span className="text-[10.5px] text-ink-muted">
+          已选 <span className="font-semibold text-accent">{selected.length}</span> / {volumes.length} 卷
         </span>
       </div>
 
@@ -53,24 +53,24 @@ export function VolumeSelector({
               className={cn(
                 'rounded-[10px] border px-3 py-2 text-left transition-all duration-200',
                 active
-                  ? 'border-[#C4B5FB] bg-[#F5F2FF] shadow-[inset_0_0_0_1px_rgba(167,139,250,0.25)]'
-                  : 'border-[#EFEDF6] bg-white hover:border-[#DCD4F7] hover:bg-[#FBFAFE]',
+                  ? 'border-accent-line bg-accent-soft shadow-[inset_0_0_0_1px_rgba(167,139,250,0.25)]'
+                  : 'border-line bg-surface hover:border-accent-line hover:bg-surface-soft',
               )}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className={cn('truncate text-[11.5px] font-semibold', active ? 'text-[#5738B8]' : 'text-[#3F4058]')}>
+                <span className={cn('truncate text-[11.5px] font-semibold', active ? 'text-accent' : 'text-ink')}>
                   {volume.name}
                 </span>
                 <span
                   className={cn(
                     'flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border',
-                    active ? 'border-[#7E5EE9] bg-[#7E5EE9]' : 'border-[#E1DDEF] bg-white',
+                    active ? 'border-[#7E5EE9] bg-[#7E5EE9]' : 'border-line bg-surface',
                   )}
                 >
                   {active && <Check className="h-2 w-2 text-white" />}
                 </span>
               </div>
-              <p className="mt-1 text-[9.5px] text-[#A2A2B6]">{volume.chapters} 章 · {volume.updatedAt}</p>
+              <p className="mt-1 text-[9.5px] text-ink-muted">{volume.chapters} 章 · {volume.updatedAt}</p>
             </button>
           )
         })}
