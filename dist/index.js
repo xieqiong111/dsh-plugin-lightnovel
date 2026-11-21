@@ -10,6 +10,7 @@ import { registerNovelVolumes } from './tools/novel-volumes.js';
 import { registerNovelDownload } from './tools/novel-download.js';
 import { registerNovelTasks } from './tools/novel-tasks.js';
 import { registerNovelLibrary } from './tools/novel-library.js';
+import { registerBangumiKomga } from './tools/bangumi-komga.js';
 import { registerMangaTools } from './tools/manga.js';
 /**
  * DeepSeek Harness / Cordis native plugin.
@@ -47,6 +48,7 @@ export function apply(ctx, config) {
     registerNovelLibrary(ctx, runtime);
     // Manga tools use the same configured Suwayomi client as the web BFF.
     registerMangaTools(ctx, runtime);
+    registerBangumiKomga(ctx, runtime);
     // Reverse-order disposer; async disposers are awaited by the fiber.
     ctx.effect(() => () => runtime.dispose());
     logger.info('plugin', 'applied', {
@@ -54,7 +56,7 @@ export function apply(ctx, config) {
         tools: [
             'novel_search', 'novel_details', 'novel_volumes', 'novel_download', 'novel_tasks', 'novel_library',
             'manga_search', 'manga_details', 'manga_chapters', 'manga_download', 'manga_tasks', 'manga_library', 'manga_sources', 'manga_subscribe',
-            'manga_komga_status', 'manga_komga_download', 'studio_read',
+            'manga_komga_status', 'manga_komga_download', 'studio_read', 'komga_bangumi_metadata',
         ],
         sources: resolved.enabledSources,
         searchMode: resolved.searchMode,

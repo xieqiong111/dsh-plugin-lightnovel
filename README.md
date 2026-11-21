@@ -49,6 +49,7 @@ npm --prefix web run dev -- --host 127.0.0.1
 
 - 轻小说从 `novel_search`、`novel_volumes` 开始，用 `novel_download` 创建任务、`novel_tasks` 查询状态。
 - 漫画从 `manga_search` 和 `manga_chapters` 开始，用 `manga_download` 下载指定章节。按卷归档使用 `manga_komga_download`，用 `manga_komga_status` 查询进度和实际写入的文件。
+- `komga_bangumi_metadata` 搜索 Bangumi 小说和漫画元数据，预览后写入指定的 Komga 系列或单册。[部署与用法](docs/BANGUMIKOMGA.md)
 - `studio_read` 使用 WebUI 生成的只读密钥查询 Studio 书库、队列和归档状态。下载工具使用各自后端连接。
 
 [DSH 安装、环境变量与工具列表](docs/DSH-MANGA.md)

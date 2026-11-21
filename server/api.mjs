@@ -6,7 +6,7 @@
  * is no fixture/mock branch here: an empty result is an empty result.
  */
 import { createReadStream } from 'node:fs'
-import { stat } from 'node:fs/promises'
+import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { timingSafeEqual } from 'node:crypto'
 import { TaskManagerError } from '../dist/core/tasks.js'
@@ -16,6 +16,7 @@ import { createMangaApi } from './manga-api.mjs'
 import { createKomgaClient } from './komga-client.mjs'
 import { isDshReadRoute } from './integrations.mjs'
 import { createKomgaApi } from './komga-api.mjs'
+import { createBangumiKomga } from './bangumi-komga.mjs'
 import { rank, resolveBook } from '../dist/search.js'
 import { assertSafePublicUrl } from '../dist/util/paths.js'
 import {
@@ -115,6 +116,7 @@ export function createApi(
     missingBffAuth: settings.mangaCredentialsConfigured && !settings.token && !settings.auth,
   })
   const currentKomga = () => settings.integrations?.client ?? komgaClient
+  const metadata = createBangumiKomga({ url: settings.bangumiKomgaUrl, komga: currentKomga })
   const handleDownloadFolders = createDownloadFoldersApi(settings, currentKomga)
   const handleKomgaApi = createKomgaApi({
     status: () => currentKomga().status(),
@@ -301,6 +303,30 @@ export function createApi(
     if (settings.auth && await settings.auth.handle(req, res, url)) return true
     if (req.method === 'GET' && url.pathname === '/api/auth/status') {
       sendJson(res, 200, { enabled: false })
+      return true
+    }
+    const metadataRoute = /^\/api\/komga\/metadata\/(search|books|preview|apply)$/.exec(url.pathname)
+    if (metadataRoute && req.method === 'POST') {
+      try {
+        if (!settings.bangumiKomgaUrl || !settings.metadataTokenFile) {
+          throw new HttpError(503, 'BANGUMIKOMGA_UNCONFIGURED', '请配置 BangumiKomga 服务和元数据密钥文件。')
+        }
+        let secret
+        try { secret = (await readFile(settings.metadataTokenFile, 'utf8')).trim() } catch {
+          throw new HttpError(503, 'METADATA_TOKEN_UNAVAILABLE', '无法读取元数据密钥文件。')
+        }
+        if (!/^studio_metadata_[A-Za-z0-9_-]{43}$/.test(secret)) {
+          throw new HttpError(503, 'METADATA_TOKEN_INVALID', '元数据密钥文件格式无效。')
+        }
+        const supplied = /^Bearer (studio_metadata_[A-Za-z0-9_-]{43})$/.exec(req.headers.authorization ?? '')?.[1]
+        if (!supplied || !timingSafeEqual(Buffer.from(supplied), Buffer.from(secret))) {
+          throw new HttpError(403, 'METADATA_AUTH_REQUIRED', '此接口需要独立的元数据密钥。')
+        }
+        sendJson(res, 200, await metadata(metadataRoute[1], await readBody(req)))
+      } catch (error) {
+        const status = Number.isInteger(error?.status) ? error.status : 500
+        sendError(res, status, error?.code || 'METADATA_ERROR', status === 500 ? '元数据操作失败。' : error.message)
+      }
       return true
     }
     const dshAllowed = settings.integrations?.authorizeDsh(req) ?? false
