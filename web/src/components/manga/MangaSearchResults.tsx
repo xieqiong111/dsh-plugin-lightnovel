@@ -23,7 +23,7 @@ export function MangaSearchResults({ keyword, attempt }: { keyword: string; atte
             aria-label="漫画源"
             value={sourceId}
             onChange={(event) => setSourceId(event.target.value)}
-            className="max-w-[60%] rounded-full border border-[#EDEAF6] bg-white px-3 py-2 text-xs text-[#5B5B73]"
+            className="max-w-[60%] rounded-full border border-line bg-surface px-3 py-2 text-xs text-ink-soft"
           >
             <option value="">全部漫画源</option>
             {sources.map((source) => <option key={source.id} value={source.id}>{source.name} · {source.lang}</option>)}
@@ -33,10 +33,10 @@ export function MangaSearchResults({ keyword, attempt }: { keyword: string; atte
       {!loading && sources.length > 0 && sources.every((source) => source.id === '0') && (
         <MangaNotice message="尚未安装漫画源扩展。当前可搜索 Suwayomi 本地漫画。" />
       )}
-      {loading ? <p className="text-xs text-[#6B6B85]"><Spinner /> 正在读取漫画源…</p>
+      {loading ? <p className="text-xs text-ink-soft"><Spinner /> 正在读取漫画源…</p>
         : error ? <MangaNotice message={`漫画源不可用 · ${error}`} />
         : !sources.length ? <MangaNotice message="没有可搜索的漫画源。请在 Suwayomi 安装并启用漫画源扩展。" />
-        : !hasQuery ? <p className="text-xs text-[#6B6B85]">输入漫画标题开始搜索。</p>
+        : !hasQuery ? <p className="text-xs text-ink-soft">输入漫画标题开始搜索。</p>
         : <MangaResultList key={JSON.stringify([keyword, sourceId, attempt])} query={keyword} sourceId={sourceId} sources={sources} />}
     </section>
   )
@@ -82,7 +82,7 @@ function MangaResultList({ query, sourceId, sources }: { query: string; sourceId
           {mangas.map((manga) => <MangaCard key={`${manga.sourceId}:${manga.id}`} manga={manga} />)}
         </div>
       )}
-      {loading && <p role="status" className="text-xs text-[#6B6B85]"><Spinner /> 正在搜索漫画…</p>}
+      {loading && <p role="status" className="text-xs text-ink-soft"><Spinner /> 正在搜索漫画…</p>}
       {!loading && !error && mangas.length === 0 && (
         <Card><EmptyState icon={<BookOpen />} title="没有找到匹配的漫画" description="可尝试其他标题、别名或漫画源。" /></Card>
       )}

@@ -18,15 +18,15 @@ export function PageHeader({
     <div className={cn('flex flex-col gap-4 pb-6 sm:flex-row sm:items-end sm:justify-between', className)}>
       <div className="min-w-0">
         {eyebrow && (
-          <p className="mb-2 flex items-center gap-1.5 text-[9.5px] font-semibold uppercase tracking-[0.22em] text-[#A78BFA]">
+          <p className="mb-2 flex items-center gap-1.5 text-[9.5px] font-semibold uppercase tracking-[0.22em] text-accent">
             {eyebrow}
           </p>
         )}
-        <h1 className="text-[26px] font-bold leading-tight tracking-[-0.02em] text-[#1E1F35] lg:text-[28px]">
+        <h1 className="text-[26px] font-bold leading-tight tracking-[-0.02em] text-ink lg:text-[28px]">
           {title}
         </h1>
         {description && (
-          <p className="mt-2 max-w-[640px] text-[11.5px] leading-relaxed text-[#8B8BA0]">{description}</p>
+          <p className="mt-2 max-w-[640px] text-[11.5px] leading-relaxed text-ink-soft">{description}</p>
         )}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}

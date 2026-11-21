@@ -111,12 +111,12 @@ function MangaDetail({ id }: { id: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Link to="/search?type=manga" className="inline-flex items-center gap-2 text-xs font-semibold text-[#6C4AD9]">
+        <Link to="/search?type=manga" className="inline-flex items-center gap-2 text-xs font-semibold text-accent">
           <ArrowLeft className="h-4 w-4" /> 搜索漫画
         </Link>
-        <Link to="/tasks?type=manga" className="text-xs font-semibold text-[#6C4AD9]">查看漫画下载队列</Link>
+        <Link to="/tasks?type=manga" className="text-xs font-semibold text-accent">查看漫画下载队列</Link>
       </div>
-      {detail.loading && !manga ? <p role="status" className="text-xs text-[#6B6B85]"><Spinner /> 读取漫画资料…</p>
+      {detail.loading && !manga ? <p role="status" className="text-xs text-ink-soft"><Spinner /> 读取漫画资料…</p>
         : !manga ? (
           <Card>
             <EmptyState icon={<BookOpen />} title="漫画详情不可用" description={detail.error ?? undefined}
@@ -143,11 +143,11 @@ function MangaDetail({ id }: { id: string }) {
               </div>
               <div className="col-span-2 min-w-0 sm:col-span-1 sm:col-start-2">
                 {manga.url && /^https?:\/\//i.test(manga.url) && (
-                  <a href={manga.url} target="_blank" rel="noreferrer" className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-[#6C4AD9]">
+                  <a href={manga.url} target="_blank" rel="noreferrer" className="mb-2 inline-flex items-center gap-1 text-xs font-medium text-accent">
                     <ExternalLink className="h-3.5 w-3.5" /> 来源网站
                   </a>
                 )}
-                <p className="whitespace-pre-line break-words text-sm leading-relaxed text-[#6B6B85]">{manga.description || '暂无简介。'}</p>
+                <p className="whitespace-pre-line break-words text-sm leading-relaxed text-ink-soft">{manga.description || '暂无简介。'}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Button size="sm" disabled={Boolean(busy) || detail.loading || manga.inLibrary} loading={busy === 'library'}
                     onClick={() => void changeMembership('library', true)}>加入漫画书架</Button>
@@ -158,7 +158,7 @@ function MangaDetail({ id }: { id: string }) {
                   <Button size="sm" disabled={Boolean(busy) || chapterPage.loading} loading={busy === 'refresh'} onClick={() => void refresh()}
                     icon={<RefreshCw className="h-3.5 w-3.5" />}>更新章节</Button>
                 </div>
-                <p className="mt-2 text-xs text-[#8B8BA0]">追更以 Suwayomi 书架成员身份管理，检查频率和更新策略由 Suwayomi 设置决定。</p>
+                <p className="mt-2 text-xs text-ink-soft">追更以 Suwayomi 书架成员身份管理，检查频率和更新策略由 Suwayomi 设置决定。</p>
               </div>
             </Card>
             {actionError && <MangaNotice message={actionError} />}
@@ -173,7 +173,7 @@ function MangaDetail({ id }: { id: string }) {
                 )}>选择可下载章节</Button>
                 <Button size="sm" variant="primary" loading={busy === 'download'} disabled={!selected.length || Boolean(busy) || chapterPage.loading || Boolean(chapterPage.error)}
                   icon={<Download className="h-3.5 w-3.5" />} onClick={() => void download()}>下载选中章节（{selected.length}）</Button>
-                <span className="text-xs text-[#6B6B85]">
+                <span className="text-xs text-ink-soft">
                   {localSource ? '本地漫画中的章节已存放在 Suwayomi 数据目录。' : `每次最多 ${maxSelection} 章`}
                 </span>
               </div>
@@ -182,7 +182,7 @@ function MangaDetail({ id }: { id: string }) {
                 <EmptyState icon={<BookOpen />} title="暂无章节" description="点击更新章节，从漫画源读取最新目录。" />
               )}
               {!chapterPage.error && (
-                <ul className="divide-y divide-[#F3F1F9]">
+                <ul className="divide-y divide-line">
                   {chapters.map((chapter) => (
                     <li key={chapter.id}>
                       <label className="flex flex-wrap items-center gap-x-3 gap-y-1 py-3 text-xs">
@@ -190,19 +190,19 @@ function MangaDetail({ id }: { id: string }) {
                           disabled={localSource || chapter.downloaded || Boolean(busy) || (!selected.includes(chapter.id) && selected.length >= maxSelection)}
                           className="h-4 w-4 accent-[#7E5EE9]"
                           onChange={(event) => setSelected(event.target.checked ? [...selected, chapter.id] : selected.filter((entry) => entry !== chapter.id))} />
-                        <span className="min-w-0 flex-1 break-words font-semibold text-[#2B2C44]">{chapter.name}</span>
+                        <span className="min-w-0 flex-1 break-words font-semibold text-ink">{chapter.name}</span>
                         <span className="flex flex-wrap gap-1">
                           {chapter.id === latestId && <Badge>最新</Badge>}
                           {chapter.downloaded && <Badge tone="green">已下载</Badge>}
                           {chapter.read && <Badge tone="gray">已读</Badge>}
                         </span>
-                        <time className="text-[#77778F]">{mangaDate(chapter.uploadDate)}</time>
+                        <time className="text-ink-soft">{mangaDate(chapter.uploadDate)}</time>
                       </label>
                     </li>
                   ))}
                 </ul>
               )}
-              {chapterPage.loading ? <p role="status" className="mt-3 text-xs text-[#6B6B85]"><Spinner /> 读取章节…</p>
+              {chapterPage.loading ? <p role="status" className="mt-3 text-xs text-ink-soft"><Spinner /> 读取章节…</p>
                 : hasNextPage && !chapterPage.error && (
                   <Button size="sm" className="mt-3" disabled={Boolean(busy)} onClick={() => setOffset(chapters.length)}>加载更多章节</Button>
                 )}
@@ -215,7 +215,7 @@ function MangaDetail({ id }: { id: string }) {
           <Button size="sm" variant="danger" loading={busy === 'subscribe'}
             onClick={() => void changeMembership('subscribe', false)}>取消订阅并移出书架</Button>
         </div>}>
-        <p className="p-5 text-sm text-[#6B6B85]">Suwayomi 通过漫画书架决定追更范围。取消订阅会把此漫画移出书架。</p>
+        <p className="p-5 text-sm text-ink-soft">Suwayomi 通过漫画书架决定追更范围。取消订阅会把此漫画移出书架。</p>
         {actionError && <MangaNotice message={actionError} />}
       </Modal>
     </div>
@@ -271,23 +271,23 @@ function KomgaDownload({ id, revision }: { id: string; revision: number }) {
   return (
     <Card className="p-4 sm:p-5">
       <SectionTitle title="下载到 Komga" />
-      {catalog.loading && !catalog.data ? <p role="status" className="mt-2 text-xs text-[#6B6B85]"><Spinner /> 读取分卷…</p>
+      {catalog.loading && !catalog.data ? <p role="status" className="mt-2 text-xs text-ink-soft"><Spinner /> 读取分卷…</p>
         : catalog.error ? <MangaNotice message={catalog.error} />
-        : !catalog.data?.available ? <p className="mt-2 text-xs text-[#6B6B85]">此 Studio 尚未连接 Komga 归档服务。</p>
-        : !volume ? <p className="mt-2 text-xs text-[#6B6B85]">该来源没有可识别的分卷，可在下方下载单话。</p>
+        : !catalog.data?.available ? <p className="mt-2 text-xs text-ink-soft">此 Studio 尚未连接 Komga 归档服务。</p>
+        : !volume ? <p className="mt-2 text-xs text-ink-soft">该来源没有可识别的分卷，可在下方下载单话。</p>
         : (
           <>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <select aria-label="选择要下载到 Komga 的卷" value={String(volume.number)} disabled={busy || catalog.loading}
                 onChange={(event) => { setChoice(event.target.value); setError('') }}
-                className="max-w-full rounded-lg border border-[#E7E0FA] bg-white px-3 py-2 text-xs text-[#2B2C44]">
+                className="max-w-full rounded-lg border border-accent-line bg-surface px-3 py-2 text-xs text-ink">
                 {volumes.map((entry) => <option key={entry.number} value={entry.number}>第 {entry.number} 卷</option>)}
               </select>
               <Button size="sm" variant="primary" loading={busy}
                 disabled={busy || catalog.loading || Boolean(volume.filename) || isActive || volume.total > 100}
                 icon={<Download className="h-3.5 w-3.5" />} onClick={() => void download()}>一键下载到 Komga</Button>
             </div>
-            <p role="status" className="mt-2 text-xs text-[#6B6B85]">
+            <p role="status" className="mt-2 text-xs text-ink-soft">
               {volume.filename ? `已写入 Komga 目录 · ${volume.filename}`
                 : waitingForArchive ? '本卷已下载，正在等待生成 CBZ。'
                 : volume.state === 'failed' ? 'Suwayomi 报告下载失败，请查看漫画下载队列。'

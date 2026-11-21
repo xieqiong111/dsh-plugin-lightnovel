@@ -41,7 +41,7 @@ export function KomgaLibraryPage({ providerTabs }: { providerTabs: ReactNode }) 
       {providerTabs}
 
       {loading ? (
-        <Card className="flex items-center gap-2 p-5 text-sm text-[#6B6B85]" role="status"><Spinner /> 正在读取 Komga 书库…</Card>
+        <Card className="flex items-center gap-2 p-5 text-sm text-ink-soft" role="status"><Spinner /> 正在读取 Komga 书库…</Card>
       ) : error ? (
         <Card>
           <EmptyState
@@ -57,11 +57,11 @@ export function KomgaLibraryPage({ providerTabs }: { providerTabs: ReactNode }) 
         <>
           <Card className="mb-4 flex flex-col gap-3 p-4 md:flex-row md:items-end">
             <label className="block min-w-0 md:w-64">
-              <span className="mb-1 block text-xs font-medium text-[#6B6B85]">Komga 书库</span>
+              <span className="mb-1 block text-xs font-medium text-ink-soft">Komga 书库</span>
               <select
                 value={libraryId}
                 onChange={(event) => updateFilter('library', event.target.value)}
-                className="h-10 w-full rounded-xl border border-[#EDEAF6] bg-white px-3 text-sm text-[#33344B]"
+                className="h-10 w-full rounded-xl border border-line bg-surface px-3 text-sm text-ink"
               >
                 {!available && <option value={libraryId} disabled>原选书库不可用</option>}
                 {libraries.map((library) => <option key={library.id} value={library.id}>{library.name}</option>)}
@@ -77,14 +77,14 @@ export function KomgaLibraryPage({ providerTabs }: { providerTabs: ReactNode }) 
                 maxLength={200}
                 placeholder="搜索系列标题…"
                 aria-label="搜索 Komga 系列"
-                className="h-10 min-w-0 flex-1 rounded-xl border border-[#EDEAF6] bg-[#FBFAFE] px-3 text-sm text-[#33344B]"
+                className="h-10 min-w-0 flex-1 rounded-xl border border-line bg-surface-soft px-3 text-sm text-ink"
               />
               <Button type="submit" variant="soft" icon={<Search className="h-4 w-4" />}>搜索</Button>
             </form>
           </Card>
           {available
             ? <KomgaSeriesGrid key={JSON.stringify([libraryId, query, attempt])} libraryId={libraryId} query={query} />
-            : <Card className="p-5 text-sm text-[#6B6B85]" role="status">所选书库不可用，请选择另一书库。</Card>}
+            : <Card className="p-5 text-sm text-ink-soft" role="status">所选书库不可用，请选择另一书库。</Card>}
         </>
       )}
     </div>
@@ -96,7 +96,7 @@ function KomgaSeriesGrid({ libraryId, query }: { libraryId: string; query: strin
   const [attempt, setAttempt] = useState(0)
   const { data, loading, error } = useAsync(() => komgaApi.series(libraryId, query, page), [page, attempt])
 
-  if (loading) return <Card className="flex items-center gap-2 p-5 text-sm text-[#6B6B85]" role="status"><Spinner /> 正在读取 Komga 系列…</Card>
+  if (loading) return <Card className="flex items-center gap-2 p-5 text-sm text-ink-soft" role="status"><Spinner /> 正在读取 Komga 系列…</Card>
   if (error) return (
     <Card><EmptyState icon={<BookOpen />} title="Komga 系列读取失败" description={error}
       action={<Button size="sm" onClick={() => setAttempt((value) => value + 1)}>重试</Button>} /></Card>
@@ -107,7 +107,7 @@ function KomgaSeriesGrid({ libraryId, query }: { libraryId: string; query: strin
     <section aria-label="Komga 系列">
       {data.content.length ? (
         <>
-          <p className="mb-3 text-xs text-[#6B6B85]">{data.page.totalElements} 个系列</p>
+          <p className="mb-3 text-xs text-ink-soft">{data.page.totalElements} 个系列</p>
           <div className="library-cover-grid grid">
             {data.content.map((series) => <KomgaSeriesCard key={series.id} series={series} />)}
           </div>
@@ -118,7 +118,7 @@ function KomgaSeriesGrid({ libraryId, query }: { libraryId: string; query: strin
       {(page > 0 || !data.page.last) && (
         <nav aria-label="Komga 系列分页" className="mt-5 flex flex-wrap items-center justify-center gap-3">
           <Button size="sm" disabled={data.page.first} onClick={() => setPage((value) => value - 1)}>上一页</Button>
-          <span className="text-xs text-[#6B6B85]">第 {data.page.number + 1} 页</span>
+          <span className="text-xs text-ink-soft">第 {data.page.number + 1} 页</span>
           <Button size="sm" disabled={data.page.last} onClick={() => setPage((value) => value + 1)}>下一页</Button>
         </nav>
       )}
@@ -133,9 +133,9 @@ function KomgaSeriesCard({ series }: { series: KomgaSeries }) {
       {IS_LIVE ? <ApiCover path={komgaCoverPath(series.id)} title={series.title} className={coverClass} />
         : series.mockCover && <CoverArt theme={series.mockCover} index={0} title={series.title} media="manga" className={coverClass} />}
       <div className="space-y-1.5 px-2 pb-2 pt-3">
-        <h3 className="break-words text-[13px] font-bold text-[#2B2C44]">{series.title}</h3>
-        <p className="text-xs text-[#6B6B85]">{series.booksCount} 本 · 已读 {series.booksReadCount}</p>
-        {series.summary && <p className="line-clamp-2 break-words text-[11px] leading-relaxed text-[#6B6B85]">{series.summary}</p>}
+        <h3 className="break-words text-[13px] font-bold text-ink">{series.title}</h3>
+        <p className="text-xs text-ink-soft">{series.booksCount} 本 · 已读 {series.booksReadCount}</p>
+        {series.summary && <p className="line-clamp-2 break-words text-[11px] leading-relaxed text-ink-soft">{series.summary}</p>}
 
       </div>
     </Card>

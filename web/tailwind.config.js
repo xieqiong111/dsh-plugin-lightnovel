@@ -5,6 +5,31 @@ export default {
     extend: {
       colors: {
         canvas: 'var(--canvas)',
+        surface: 'rgb(var(--surface-rgb) / <alpha-value>)',
+        'surface-soft': 'var(--surface-soft)',
+        line: 'var(--line)',
+        track: 'var(--track)',
+        accent: {
+          DEFAULT: 'var(--accent)',
+          soft: 'var(--accent-soft)',
+          line: 'var(--accent-line)',
+        },
+        positive: {
+          DEFAULT: 'var(--positive)',
+          soft: 'var(--positive-soft)',
+          line: 'var(--positive-line)',
+        },
+        caution: {
+          DEFAULT: 'var(--caution)',
+          soft: 'var(--caution-soft)',
+          line: 'var(--caution-line)',
+        },
+        negative: {
+          DEFAULT: 'var(--negative)',
+          soft: 'var(--negative-soft)',
+          line: 'var(--negative-line)',
+        },
+        info: { DEFAULT: 'var(--info)', soft: 'var(--info-soft)' },
         ink: {
           DEFAULT: 'var(--ink)',
           soft: 'var(--ink-soft)',
@@ -44,7 +69,7 @@ export default {
         ],
       },
       boxShadow: {
-        card: '0 1px 2px rgba(30,31,53,0.04), 0 10px 30px -12px rgba(30,31,53,0.10)',
+        card: 'var(--shadow-card)',
         lift: '0 18px 40px -18px rgba(78,54,168,0.28)',
         nav: '0 10px 24px -8px rgba(114,79,232,0.55)',
         hero: '0 24px 60px -32px rgba(109,78,224,0.55)',

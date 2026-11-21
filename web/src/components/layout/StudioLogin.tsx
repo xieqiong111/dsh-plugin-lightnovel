@@ -3,6 +3,7 @@ import type { FormEvent, ReactNode } from 'react'
 import { BookOpen, LogOut } from 'lucide-react'
 import { Badge, Button, Card, Spinner } from '@/components/common/ui'
 import { apiFetch, IS_LIVE, setApiToken } from '@/services/runtime'
+import { ThemeToggle } from './ThemeToggle'
 
 type Status = { enabled: false } | {
   enabled: true
@@ -12,7 +13,7 @@ type Status = { enabled: false } | {
   durations: number[]
 }
 const labels: Record<number, string> = { 28800: '8 小时', 86400: '1 天', 604800: '7 天', 2592000: '30 天' }
-const inputStyle = 'mt-1 block h-11 w-full rounded-xl border border-[#E7E0FA] bg-[#FBFAFE] px-3 text-sm outline-none focus:border-[#7E5EE9]'
+const inputStyle = 'mt-1 block h-11 w-full rounded-xl border border-accent-line bg-surface-soft px-3 text-sm outline-none focus:border-[#7E5EE9]'
 
 const post = (action: string, body: object = {}) => apiFetch<Status>(`/auth/${action}`, {
   method: 'POST',
@@ -81,9 +82,9 @@ function LoginGate({ children }: { children: ReactNode }) {
     return (
       <>
         {children}
-        <div className="fixed bottom-3 right-3 z-40 flex items-center gap-2 rounded-xl border border-[#EFEDF6] bg-white px-2 py-1 shadow-card">
-          {error && <span role="alert" className="text-xs text-red-700">{error}</span>}
-          <span className="hidden max-w-32 truncate text-xs text-[#6B6B85] sm:inline" title={`会话有效期至 ${new Date(expiresAt ?? 0).toLocaleString()}`}>{username}</span>
+        <div className="fixed bottom-3 right-3 z-40 flex items-center gap-2 rounded-xl border border-line bg-surface px-2 py-1 shadow-card">
+          {error && <span role="alert" className="text-xs text-negative">{error}</span>}
+          <span className="hidden max-w-32 truncate text-xs text-ink-soft sm:inline" title={`会话有效期至 ${new Date(expiresAt ?? 0).toLocaleString()}`}>{username}</span>
           <Button size="sm" loading={busy} disabled={busy} icon={<LogOut className="h-3.5 w-3.5" />} onClick={() => void logout()}>退出登录</Button>
         </div>
       </>
@@ -116,44 +117,45 @@ function LoginGate({ children }: { children: ReactNode }) {
   }
 
   return (
-    <main className="grid min-h-screen place-items-center bg-[radial-gradient(ellipse_at_top_left,#EDE7FF,#F8F7FC_65%)] px-4 py-8">
+    <main className="grid min-h-screen place-items-center studio-login px-4 py-8">
       <Card className="w-full max-w-[440px] p-6 sm:p-8">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-xl bg-[#7555DD] text-white"><BookOpen className="h-5 w-5" /></div>
-          <span className="text-sm font-semibold text-[#373452]">轻小说与漫画书库</span>
+          <span className="min-w-0 flex-1 text-sm font-semibold text-ink">轻小说与漫画书库</span>
+          <ThemeToggle />
         </div>
-        <h1 className="mt-5 text-2xl font-bold text-[#22233B]">{creating ? '创建管理员账号' : '登录 Studio'}</h1>
+        <h1 className="mt-5 text-2xl font-bold text-ink">{creating ? '创建管理员账号' : '登录 Studio'}</h1>
         {creating && <Badge className="mt-2">首次设置</Badge>}
-        {error && <p role="alert" className="mt-3 rounded-lg bg-red-50 p-2.5 text-sm text-red-700">{error}</p>}
+        {error && <p role="alert" className="mt-3 rounded-lg bg-negative-soft p-2.5 text-sm text-negative">{error}</p>}
         {!status ? (error
           ? <Button className="mt-4" onClick={() => void check()}>重试</Button>
-          : <p className="mt-4 text-sm text-[#6B6B85]" role="status"><Spinner /> 正在检查登录状态…</p>
+          : <p className="mt-4 text-sm text-ink-soft" role="status"><Spinner /> 正在检查登录状态…</p>
         ) : status.enabled && (
           <form key={creating ? 'setup' : 'login'} className="mt-5 space-y-3.5" onSubmit={(event) => void submit(event)}>
             {creating && (
-              <label className="block text-sm font-medium text-[#393951]">
+              <label className="block text-sm font-medium text-ink">
                 初始化码
                 <input name="setupCode" type="password" autoComplete="off" required className={inputStyle} />
-                <span className="mt-1 block text-xs font-normal text-[#6B6B85]">使用部署时设置的初始化码。未配置时，从 NAS 的 auth/setup-code 文件读取。</span>
+                <span className="mt-1 block text-xs font-normal text-ink-soft">使用部署时设置的初始化码。未配置时，从 NAS 的 auth/setup-code 文件读取。</span>
               </label>
             )}
-            <label className="block text-sm font-medium text-[#393951]">
+            <label className="block text-sm font-medium text-ink">
               账号
               <input name="username" autoComplete="username" required maxLength={40} className={inputStyle} />
             </label>
-            <label className="block text-sm font-medium text-[#393951]">
+            <label className="block text-sm font-medium text-ink">
               密码
               <input name="password" type="password" autoComplete={creating ? 'new-password' : 'current-password'}
                 required minLength={creating ? 10 : undefined} maxLength={256} className={inputStyle} />
-              {creating && <span className="mt-1 block text-xs font-normal text-[#6B6B85]">至少 10 个字符。</span>}
+              {creating && <span className="mt-1 block text-xs font-normal text-ink-soft">至少 10 个字符。</span>}
             </label>
             {creating && (
-              <label className="block text-sm font-medium text-[#393951]">
+              <label className="block text-sm font-medium text-ink">
                 确认密码
                 <input name="confirm" type="password" autoComplete="new-password" required className={inputStyle} />
               </label>
             )}
-            <label className="block text-sm font-medium text-[#393951]">
+            <label className="block text-sm font-medium text-ink">
               此设备免登录时长
               <select name="seconds" className={inputStyle} defaultValue={status.durations[0]}>
                 {status.durations.map((seconds) => <option key={seconds} value={seconds}>{labels[seconds] ?? `${seconds} 秒`}</option>)}

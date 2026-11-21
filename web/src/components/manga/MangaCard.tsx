@@ -55,24 +55,24 @@ export function MangaCard({ manga, library = false }: { manga: Manga; library?: 
         <MangaCover manga={manga} className="aspect-[3/4] w-full rounded-[11px]" />
         <div className="flex flex-1 flex-col space-y-1.5 px-2 pb-2 pt-3">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <h3 className="min-w-0 flex-[1_1_7rem] break-words text-[13px] font-bold leading-snug text-[#2B2C44]" title={manga.title}>{manga.title}</h3>
+            <h3 className="min-w-0 flex-[1_1_7rem] break-words text-[13px] font-bold leading-snug text-ink" title={manga.title}>{manga.title}</h3>
             <Badge className="shrink-0">漫画</Badge>
           </div>
-          <p className="truncate text-[11px] text-[#6B6B85]">{mangaSource(manga)} · {mangaStatus(manga.status)}</p>
+          <p className="truncate text-[11px] text-ink-soft">{mangaSource(manga)} · {mangaStatus(manga.status)}</p>
           {library ? (
             <>
-            <p className="break-words text-[10px] leading-relaxed text-[#6B6B85]">
+            <p className="break-words text-[10px] leading-relaxed text-ink-soft">
               Suwayomi 章节 · {manga.downloadCount === null ? '下载状态未知' : `已下载 ${manga.downloadCount}${manga.chapterCount === null ? '' : `/${manga.chapterCount}`} 章`}
               <br />更新 {mangaDate(manga.updatedAt)} · ID {manga.id}
             </p>
-            <span className="mt-auto block pt-2"><span className="flex h-8 items-center justify-center rounded-full bg-[#F1EDFE] text-[11px] font-medium text-[#6C4AD9]">漫画详情</span></span>
+            <span className="mt-auto block pt-2"><span className="flex h-8 items-center justify-center rounded-full bg-accent-soft text-[11px] font-medium text-accent">漫画详情</span></span>
             </>
           ) : (
             <>
-              <p className="truncate text-[11px] text-[#6B6B85]">
+              <p className="truncate text-[11px] text-ink-soft">
                 {[manga.author || '作者未知', sourceWebsite(manga)].filter(Boolean).join(' · ')}
               </p>
-              <p className="line-clamp-2 text-[11px] leading-relaxed text-[#8B8BA0]">{manga.description || '暂无简介'}</p>
+              <p className="line-clamp-2 text-[11px] leading-relaxed text-ink-soft">{manga.description || '暂无简介'}</p>
             </>
           )}
         </div>

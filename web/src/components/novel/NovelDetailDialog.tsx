@@ -74,9 +74,9 @@ export function NovelDetailDialog({
             caption={novel.source}
             className="aspect-[3/4] w-full rounded-[14px] shadow-[0_18px_40px_-20px_rgba(43,42,85,0.6)]"
           />
-          <div className="mt-3 flex items-center justify-between rounded-[10px] bg-[#FBFAFE] px-3 py-2 text-[10.5px] text-[#8B8BA0]">
+          <div className="mt-3 flex items-center justify-between rounded-[10px] bg-surface-soft px-3 py-2 text-[10.5px] text-ink-soft">
             <span className="flex items-center gap-1">
-              <Star className="h-3 w-3 text-[#F59E0B]" />
+              <Star className="h-3 w-3 text-caution" />
               {novel.rating > 0 ? novel.rating.toFixed(1) : '暂无评分'}
             </span>
             <span>{novel.volumes} 卷</span>
@@ -92,23 +92,23 @@ export function NovelDetailDialog({
             <Badge tone="gray">{novel.source}</Badge>
             <Badge tone={IS_LIVE ? 'green' : 'amber'}>{IS_LIVE ? '实时数据' : '示例数据'}</Badge>
           </div>
-          <h2 className="mt-3 text-[21px] font-bold leading-tight tracking-[-0.01em] text-[#1E1F35]">{novel.title}</h2>
-          <p className="mt-1 text-[11.5px] text-[#8B8BA0]">
+          <h2 className="mt-3 text-[21px] font-bold leading-tight tracking-[-0.01em] text-ink">{novel.title}</h2>
+          <p className="mt-1 text-[11.5px] text-ink-soft">
             {novel.author} · 最近更新 {novel.updatedAt}
           </p>
-          <p className="mt-3 line-clamp-4 text-[11.5px] leading-[1.85] text-[#6B6B85]">{novel.summary}</p>
+          <p className="mt-3 line-clamp-4 text-[11.5px] leading-[1.85] text-ink-soft">{novel.summary}</p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {novel.tags.map((tag) => (
-              <span key={tag} className="rounded-full bg-[#F5F2FF] px-2.5 py-1 text-[10px] text-[#7C6BB8]">
+              <span key={tag} className="rounded-full bg-accent-soft px-2.5 py-1 text-[10px] text-accent">
                 #{tag}
               </span>
             ))}
           </div>
 
-          <div className="mt-4 border-t border-[#F2F0F8] pt-4">
+          <div className="mt-4 border-t border-line pt-4">
             <VolumeSelector volumes={volumes} selected={selected} onChange={setSelected} />
             {volumes.length === 0 && (
-              <p className="mt-3 rounded-[10px] bg-[#FDF8EC] px-3 py-2 text-[10px] leading-relaxed text-[#B4791B]">
+              <p className="mt-3 rounded-[10px] bg-caution-soft px-3 py-2 text-[10px] leading-relaxed text-caution">
                 {IS_LIVE
                   ? '后端未返回分卷：请检查 Dart headless 核心是否可用，或该书源是否提供卷目录。'
                   : '暂无分卷数据。'}
@@ -129,13 +129,13 @@ export function NovelDetailDialog({
             <Link
               to={`/novel/${encodeURIComponent(novel.id)}`}
               onClick={onClose}
-              className="inline-flex h-10 items-center gap-1.5 rounded-full border border-[#E7E3F5] bg-white px-5 text-[12px] font-medium text-[#5B5B73] transition hover:border-[#D8D0F2] hover:text-[#6C4AD9]"
+              className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line bg-surface px-5 text-[12px] font-medium text-ink-soft transition hover:border-accent-line hover:text-accent"
             >
               <BookOpen className="h-3.5 w-3.5" />
               完整详情
               <ArrowRight className="h-3.5 w-3.5" />
             </Link>
-            <span className="text-[10px] text-[#B5B5C6]">任务创建后会出现在「下载任务」</span>
+            <span className="text-[10px] text-ink-muted">任务创建后会出现在「下载任务」</span>
           </div>
         </div>
       </div>

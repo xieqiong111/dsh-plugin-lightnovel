@@ -15,12 +15,36 @@
 /* ------------------------------------------------------------------ */
 :root {
   --canvas: #f7f7fc;
-  --surface: #ffffff;
+  --surface-rgb: 255 255 255;
+  --surface-soft: #fbfafe;
   --ink: #1e1f35;
   --ink-soft: #5b5b73;
   --ink-muted: #9a9aae;
   --line: #efedf6;
   --line-strong: #e5e2f0;
+  --track: #e5e1f1;
+  --accent: #6c4ad9;
+  --accent-soft: #f1edfe;
+  --accent-line: #dcd4f7;
+  --positive: #08785a;
+  --positive-soft: #ecfdf5;
+  --positive-line: #d1f0e2;
+  --caution: #8d5a08;
+  --caution-soft: #fef6e7;
+  --caution-line: #f5e3be;
+  --negative: #a52665;
+  --negative-soft: #fff0f6;
+  --negative-line: #f8dceb;
+  --info: #2563ba;
+  --info-soft: #eaf4fe;
+  --shadow-card: 0 1px 2px rgba(30, 31, 53, 0.04), 0 10px 30px -12px rgba(30, 31, 53, 0.10);
+  --hero: linear-gradient(100deg, #f5f2ff, #efebff 36%, #e6e0fd 64%, #d6cef9 88%, #c9c1f5);
+  --banner: linear-gradient(110deg, #f7f4ff, #f0ecff 55%, #e6e0fd);
+  --notice: linear-gradient(100deg, #fffbf3, #fdf6e8);
+  --hero-glow: #ffffff66;
+  --login: radial-gradient(ellipse at top left, #ede7ff, #f8f7fc 65%);
+  --scrollbar: #ddd9ec;
+  --scrollbar-hover: #c8c1e6;
 
   --violet-600: #7e5ee9;
   --violet-700: #6c4ad9;
@@ -40,6 +64,41 @@
   --radius-card: 20px;
 
   color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --canvas: #141420;
+  --surface-rgb: 30 30 46;
+  --surface-soft: #242438;
+  --ink: #f1edf9;
+  --ink-soft: #c8c2da;
+  --ink-muted: #aaa4c0;
+  --line: #37334c;
+  --line-strong: #494361;
+  --track: #3c3654;
+  --accent: #c5b2ff;
+  --accent-soft: #34294f;
+  --accent-line: #584676;
+  --positive: #78dfb6;
+  --positive-soft: #1d3a34;
+  --positive-line: #2e5a4e;
+  --caution: #f5d18b;
+  --caution-soft: #3d3023;
+  --caution-line: #614b32;
+  --negative: #ffaecb;
+  --negative-soft: #442638;
+  --negative-line: #6b3a54;
+  --info: #a4c9ff;
+  --info-soft: #263650;
+  --shadow-card: 0 1px 2px #08081066, 0 12px 30px -14px #06060da6;
+  --hero: linear-gradient(100deg, #242038, #30274c 60%, #393057);
+  --banner: linear-gradient(110deg, #26223c, #352a50);
+  --notice: linear-gradient(100deg, #28212a, #3a2d22);
+  --hero-glow: #a080f521;
+  --login: radial-gradient(ellipse at top left, #312544, var(--canvas) 66%);
+  --scrollbar: #48415e;
+  --scrollbar-hover: #6a5b86;
 }
 
 @layer base {
@@ -76,14 +135,14 @@
 
 @layer components {
   .surface-card {
-    @apply rounded-[20px] border border-[#EFEDF6] bg-white shadow-card;
+    @apply rounded-[20px] border border-line bg-surface shadow-card;
   }
   .text-gradient {
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(96deg, #8a63f3 0%, #6c4ad9 55%, #8f6bf0 100%);
   }
-  .focus-ring {
-    @apply outline-none ring-2 ring-violet-400/50 ring-offset-2 ring-offset-white;
+  .focus-ring:focus-visible {
+    @apply outline-none ring-2 ring-violet-400/50 ring-offset-2 ring-offset-surface;
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
@@ -92,12 +151,21 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+  .studio-hero { background-image: var(--hero); }
+  .studio-banner { background-image: var(--banner); }
+  .studio-notice { background-image: var(--notice); }
+  .studio-login { background-image: var(--login); }
+
+  :root[data-theme='dark'] .text-gradient {
+    background-image: linear-gradient(96deg, #ded0ff, #b896ff);
+  }
+
   .grid-dots {
     background-image: radial-gradient(rgba(124, 92, 232, 0.22) 1px, transparent 1px);
     background-size: 14px 14px;
   }
   .skeleton {
-    background: linear-gradient(90deg, #f1effa 25%, #f8f7fd 37%, #f1effa 63%);
+    background: linear-gradient(90deg, var(--surface-soft) 25%, var(--accent-soft) 37%, var(--surface-soft) 63%);
     background-size: 400% 100%;
     @apply animate-shimmer;
   }
@@ -109,12 +177,12 @@
   height: 10px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #ddd9ec;
+  background: var(--scrollbar);
   border: 3px solid var(--canvas);
   border-radius: 999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #c8c1e6;
+  background: var(--scrollbar-hover);
 }
 ::-webkit-scrollbar-track {
   background: transparent;

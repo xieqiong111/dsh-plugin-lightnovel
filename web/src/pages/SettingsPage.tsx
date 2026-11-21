@@ -12,9 +12,17 @@ import { useAsync } from '@/hooks/useAsync'
 import { novelApi } from '@/services/novelApi'
 import { API_BASE, DEMO, IS_LIVE, apiFetch, getApiToken, setApiToken, type RuntimeStatus } from '@/services/runtime'
 import { cn } from '@/services/utils'
+import { setTheme, useTheme } from '@/services/theme'
+
+const themes = [
+  { id: 'light', label: '浅色', colors: ['#F7F7FC', '#7E5EE9', '#262352'] },
+  { id: 'dark', label: '深色', colors: ['#151522', '#8B63F2', '#C4B5FB'] },
+  { id: 'system', label: '跟随系统', colors: ['#F7F7FC', '#A78BFA', '#151522'] },
+] as const
 
 export function SettingsPage() {
   const { toast } = useToast()
+  const { preference } = useTheme()
   const [apiBase, setApiBase] = useState(IS_LIVE ? `${window.location.origin}${API_BASE}` : 'http://127.0.0.1:8080/api')
   const [token, setToken] = useState(getApiToken())
   const login = useAsync(() => IS_LIVE ? apiFetch<{ enabled: boolean }>('/auth/status') : Promise.resolve({ enabled: false }), [])
@@ -89,7 +97,7 @@ export function SettingsPage() {
                   value={apiBase}
                   readOnly={IS_LIVE}
                   onChange={(event) => setApiBase(event.target.value)}
-                  className="h-10 w-full rounded-[10px] border border-[#EFEDF6] bg-[#FBFAFE] px-3 font-mono text-[11px] text-[#3F4058] focus:border-[#C4B5FB] focus:bg-white focus:outline-none"
+                  className="h-10 w-full rounded-[10px] border border-line bg-surface-soft px-3 font-mono text-[11px] text-ink focus:border-accent-line focus:bg-surface focus:outline-none"
                 />
               </Field>
               {legacyToken && (
@@ -100,7 +108,7 @@ export function SettingsPage() {
                     onChange={(event) => setToken(event.target.value)}
                     placeholder="LN_BFF_TOKEN（仅保存在本浏览器）"
                     autoComplete="off"
-                    className="h-10 w-full rounded-[10px] border border-[#EFEDF6] bg-[#FBFAFE] px-3 font-mono text-[11px] text-[#3F4058] focus:border-[#C4B5FB] focus:bg-white focus:outline-none"
+                    className="h-10 w-full rounded-[10px] border border-line bg-surface-soft px-3 font-mono text-[11px] text-ink focus:border-accent-line focus:bg-surface focus:outline-none"
                   />
                 </Field>
               )}
@@ -113,12 +121,12 @@ export function SettingsPage() {
                 </Field>
               </div>
               <Field label="会话与认证" hint={accountAuth ? '下次登录时可选择此设备的免登录时长' : undefined}>
-                <div className="flex h-10 items-center justify-between rounded-[10px] border border-[#EFEDF6] bg-[#FBFAFE] px-3 text-[11px] text-[#8B8BA0]">
+                <div className="flex h-10 items-center justify-between rounded-[10px] border border-line bg-surface-soft px-3 text-[11px] text-ink-soft">
                   <span className="flex items-center gap-1.5">
-                    <ShieldCheck className="h-3.5 w-3.5 text-[#10B981]" />
+                    <ShieldCheck className="h-3.5 w-3.5 text-positive" />
                     LAN Session · 演示身份
                   </span>
-                  <span className="text-[9.5px] text-[#B5B5C6]">只读</span>
+                  <span className="text-[9.5px] text-ink-muted">只读</span>
                 </div>
               </Field>
             </div>
@@ -142,42 +150,34 @@ export function SettingsPage() {
           </Card>
 
           <Card className="p-5">
-            <SectionTitle title="外观" className="[&_h2]:text-[18px]" right={<Palette className="h-4 w-4 text-[#A78BFA]" />} />
-            <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              {[
-                { name: '浅色 · 紫雾', colors: ['#F7F7FC', '#7E5EE9', '#262352'], active: true },
-                { name: '深色 · 夜航', colors: ['#171632', '#8B63F2', '#C4B5FB'], active: false },
-                { name: '跟随系统', colors: ['#FFFFFF', '#A78BFA', '#EFEDF6'], active: false },
-              ].map((theme) => (
+            <SectionTitle title="外观" className="[&_h2]:text-[18px]" right={<Palette className="h-4 w-4 text-accent" />} />
+            <div role="group" aria-label="外观模式" className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+              {themes.map(({ id, label, colors }) => (
                 <button
-                  key={theme.name}
+                  key={id}
                   type="button"
-                  onClick={() => toast({ tone: 'info', title: `${theme.name} 主题为占位`, description: '本轮只交付参考图的浅色主题。' })}
+                  aria-pressed={preference === id}
+                  onClick={() => setTheme(id)}
                   className={cn(
-                    'rounded-[12px] border p-3 text-left transition',
-                    theme.active ? 'border-[#C4B5FB] bg-[#FBFAFF]' : 'border-[#EFEDF6] bg-white hover:border-[#DCD4F7]',
+                    'focus-ring rounded-xl border p-2 text-left transition sm:p-3',
+                    preference === id ? 'border-accent-line bg-accent-soft text-accent' : 'border-line bg-surface text-ink-soft hover:border-accent-line',
                   )}
                 >
-                  <div className="flex gap-1.5">
-                    {theme.colors.map((color) => (
-                      <span key={color} className="h-5 flex-1 rounded-[5px]" style={{ background: color }} />
-                    ))}
+                  <div aria-hidden="true" className="flex gap-1">
+                    {colors.map((color) => <span key={color} className="h-5 flex-1 rounded-[4px] border border-black/10" style={{ background: color }} />)}
                   </div>
-                  <p className="mt-2 flex items-center justify-between text-[10px] text-[#5B5B73]">
-                    {theme.name}
-                    {theme.active && <span className="text-[9px] text-[#6C4AD9]">当前</span>}
-                  </p>
+                  <span className="mt-2 block text-xs font-medium">{label}</span>
                 </button>
               ))}
             </div>
           </Card>
 
-          <Card className="border-[#FADCE6] p-5">
+          <Card className="border-negative-line p-5">
             <SectionTitle title="危险操作" className="[&_h2]:text-[18px]" right={<Badge tone="rose">谨慎</Badge>} />
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-[11.5px] font-semibold text-[#3F4058]">清空本地演示缓存</p>
-                <p className="mt-1 text-[10px] leading-relaxed text-[#A2A2B6]">
+                <p className="text-[11.5px] font-semibold text-ink">清空本地演示缓存</p>
+                <p className="mt-1 text-[10px] leading-relaxed text-ink-muted">
                   仅清除浏览器中的界面状态，不会删除磁盘上的 EPUB 文件。
                 </p>
               </div>
@@ -206,8 +206,8 @@ export function SettingsPage() {
                 ['构建工具', 'Vite + React 18'],
               ].map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between gap-3">
-                  <span className="text-[#A2A2B6]">{label}</span>
-                  <span className="text-right text-[#5B5B73]">{value}</span>
+                  <span className="text-ink-muted">{label}</span>
+                  <span className="text-right text-ink-soft">{value}</span>
                 </div>
               ))}
             </div>
@@ -215,7 +215,7 @@ export function SettingsPage() {
 
           <Card className="p-5">
             <SectionTitle title="实现说明" className="[&_h2]:text-[17px]" />
-            <p className="mt-3 text-[10px] leading-[1.9] text-[#8B8BA0]">
+            <p className="mt-3 text-[10px] leading-[1.9] text-ink-soft">
               {IS_LIVE ? (
                 <>
                   BFF 将轻小说请求交给 PluginRuntime，将漫画请求转发给 Suwayomi。Suwayomi 凭据由服务端环境变量管理。
@@ -223,12 +223,12 @@ export function SettingsPage() {
               ) : (
                 <>
                   当前为纯静态
-                  <span className="mx-1 rounded bg-[#F1EDFE] px-1.5 py-0.5 text-[#6C4AD9]">Mock 数据层</span>
-                  原型，不发起任何网络请求。以 <span className="font-mono text-[9px] text-[#6C4AD9]">VITE_API_MODE=live npm run build</span> 构建后即可接入 BFF。
+                  <span className="mx-1 rounded bg-accent-soft px-1.5 py-0.5 text-accent">Mock 数据层</span>
+                  原型，不发起任何网络请求。以 <span className="font-mono text-[9px] text-accent">VITE_API_MODE=live npm run build</span> 构建后即可接入 BFF。
                 </>
               )}
             </p>
-            <div className="mt-3 flex items-start gap-1.5 rounded-[8px] bg-[#FBFAFE] px-2.5 py-2 text-[9.5px] leading-relaxed text-[#A2A2B6]">
+            <div className="mt-3 flex items-start gap-1.5 rounded-[8px] bg-surface-soft px-2.5 py-2 text-[9.5px] leading-relaxed text-ink-muted">
               <Info className="mt-[1px] h-3 w-3 shrink-0 text-[#C4B5FB]" />
               轻小说自动追更、EPUB 导入与设置持久化仍为占位。
             </div>
@@ -237,11 +237,11 @@ export function SettingsPage() {
           <Card className="p-5">
             <SectionTitle title="维护入口" className="[&_h2]:text-[17px]" />
             <div className="mt-3 space-y-2">
-              <a href="https://github.com/xieqiong111/dsh-plugin-lightnovel" target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-[9px] border border-[#F1EFF8] px-3 py-2 text-[10.5px] text-[#6B6B85] transition hover:border-[#DCD4F7] hover:text-[#6C4AD9]">
-                <Database className="h-3.5 w-3.5 text-[#A78BFA]" />
+              <a href="https://github.com/xieqiong111/dsh-plugin-lightnovel" target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-[9px] border border-line px-3 py-2 text-[10.5px] text-ink-soft transition hover:border-accent-line hover:text-accent">
+                <Database className="h-3.5 w-3.5 text-accent" />
                 GitHub 仓库
               </a>
-              <div className="flex items-center gap-2 rounded-[9px] border border-[#F1EFF8] px-3 py-2 text-[10.5px] text-[#A2A2B6]">
+              <div className="flex items-center gap-2 rounded-[9px] border border-line px-3 py-2 text-[10.5px] text-ink-muted">
                 <SlidersHorizontal className="h-3.5 w-3.5 text-[#C4B5FB]" />
                 {IS_LIVE ? 'GET /api/status · 只读' : '配置接口 · 待实现'}
               </div>
@@ -276,7 +276,7 @@ export function SettingsPage() {
           </div>
         }
       >
-        <p className="px-6 py-5 text-[11.5px] leading-relaxed text-[#6B6B85]">
+        <p className="px-6 py-5 text-[11.5px] leading-relaxed text-ink-soft">
           此操作会重置筛选、视图模式等前端状态。由于当前没有后端配置存储，不会影响插件运行。
         </p>
       </Modal>
@@ -288,8 +288,8 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   return (
     <label className="block">
       <span className="mb-1.5 flex items-center justify-between gap-2">
-        <span className="text-[10.5px] font-medium text-[#5B5B73]">{label}</span>
-        {hint && <span className="text-[9px] text-[#B5B5C6]">{hint}</span>}
+        <span className="text-[10.5px] font-medium text-ink-soft">{label}</span>
+        {hint && <span className="text-[9px] text-ink-muted">{hint}</span>}
       </span>
       {children}
     </label>
@@ -309,7 +309,7 @@ function Select({
     <select
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="h-10 w-full rounded-[10px] border border-[#EFEDF6] bg-[#FBFAFE] px-2.5 text-[11px] text-[#3F4058] focus:border-[#C4B5FB] focus:bg-white focus:outline-none"
+      className="h-10 w-full rounded-[10px] border border-line bg-surface-soft px-2.5 text-[11px] text-ink focus:border-accent-line focus:bg-surface focus:outline-none"
     >
       {options.map(([id, label]) => (
         <option key={id} value={id}>
@@ -337,13 +337,13 @@ function SwitchRow({
       role="switch"
       aria-checked={checked}
       onClick={() => onChange(!checked)}
-      className="flex w-full items-center justify-between gap-3 rounded-[10px] border border-[#F1EFF8] bg-white px-3 py-2.5 text-left transition hover:bg-[#FBFAFE]"
+      className="flex w-full items-center justify-between gap-3 rounded-[10px] border border-line bg-surface px-3 py-2.5 text-left transition hover:bg-surface-soft"
     >
       <span>
-        <span className="block text-[11px] font-semibold text-[#3F4058]">{label}</span>
-        <span className="mt-0.5 block text-[9.5px] text-[#A2A2B6]">{description}</span>
+        <span className="block text-[11px] font-semibold text-ink">{label}</span>
+        <span className="mt-0.5 block text-[9.5px] text-ink-muted">{description}</span>
       </span>
-      <span className={cn('relative h-[18px] w-[32px] shrink-0 rounded-full transition-colors', checked ? 'bg-[#7E5EE9]' : 'bg-[#E5E1F1]')}>
+      <span className={cn('relative h-[18px] w-[32px] shrink-0 rounded-full transition-colors', checked ? 'bg-[#7E5EE9]' : 'bg-track')}>
         <span className={cn('absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow-sm transition-all', checked ? 'left-[16px]' : 'left-[2px]')} />
       </span>
     </button>

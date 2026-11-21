@@ -30,7 +30,7 @@ async function noHorizontalOverflow(page) {
 }
 
 try {
-  const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 } })
+  const desktop = await browser.newPage({ viewport: { width: 1440, height: 900 }, reducedMotion: 'reduce' })
   const pageErrors = []
   const requests = []
   desktop.on('pageerror', (error) => pageErrors.push(String(error)))
@@ -110,6 +110,38 @@ try {
   await desktop.getByRole('heading', { name: /月下的茶馆/ }).first().waitFor()
   assert.deepEqual(requests, [], 'Mock mode cannot call BFF APIs')
 
+  const darkLibrary = desktop.locator('.library-cover-grid [data-media-type]').first()
+  await open(desktop, '/library')
+  await darkLibrary.waitFor()
+  const lightCard = await darkLibrary.evaluate((element) => getComputedStyle(element).backgroundColor)
+  await desktop.getByRole('button', { name: '切换为深色模式' }).click()
+  await desktop.locator('html[data-theme="dark"]').waitFor()
+  await desktop.waitForFunction((light) => {
+    const card = document.querySelector('.library-cover-grid [data-media-type]')
+    return card && getComputedStyle(card).backgroundColor !== light
+  }, lightCard)
+  assert.equal(await desktop.evaluate(() => getComputedStyle(document.documentElement).colorScheme), 'dark')
+  await capture(desktop, 'desktop-library-dark.png')
+  await desktop.reload()
+  await desktop.getByRole('button', { name: '切换为浅色模式' }).waitFor()
+  await open(desktop, '/settings')
+  const appearance = desktop.getByRole('group', { name: '外观模式' })
+  assert.equal(await appearance.getByRole('button', { name: '深色', exact: true }).getAttribute('aria-pressed'), 'true')
+  await desktop.getByRole('button', { name: '清空缓存' }).click()
+  const dialog = desktop.getByRole('dialog')
+  await dialog.waitFor()
+  assert.notEqual(await dialog.evaluate((element) => getComputedStyle(element).backgroundColor), lightCard)
+  await dialog.getByRole('button', { name: '取消', exact: true }).click()
+  await desktop.emulateMedia({ colorScheme: 'light' })
+  await appearance.getByRole('button', { name: '跟随系统' }).click()
+  await desktop.locator('html[data-theme="light"]').waitFor()
+  await desktop.emulateMedia({ colorScheme: 'dark' })
+  await desktop.locator('html[data-theme="dark"]').waitFor()
+  await desktop.reload()
+  assert.equal(await appearance.getByRole('button', { name: '跟随系统' }).getAttribute('aria-pressed'), 'true')
+  await desktop.getByRole('button', { name: '切换为浅色模式' }).click()
+  await desktop.locator('html[data-theme="light"]').waitFor()
+
   const mobile = await browser.newPage({ viewport: { width: 390, height: 844 }, isMobile: true, deviceScaleFactor: 1, hasTouch: true })
   mobile.on('pageerror', (error) => pageErrors.push(String(error)))
   await open(mobile, '/manga/101')
@@ -125,13 +157,22 @@ try {
   await capture(mobile, 'mobile-library.png')
   await mobile.getByRole('button', { name: '列表视图' }).click()
   await noHorizontalOverflow(mobile)
+  await mobile.getByRole('button', { name: '网格视图' }).click()
+  await mobile.getByRole('button', { name: '切换为深色模式' }).click()
+  await mobile.locator('html[data-theme="dark"]').waitFor()
+  await noHorizontalOverflow(mobile)
+  await capture(mobile, 'mobile-library-dark.png')
+  await mobile.getByRole('button', { name: '通知' }).click()
+  const panel = mobile.getByText('通知为本地演示数据。').locator('..')
+  const bounds = await panel.boundingBox()
+  assert.ok(bounds && bounds.x >= 0 && bounds.x + bounds.width <= 390)
   const tablet = await browser.newPage({ viewport: { width: 768, height: 1024 }, hasTouch: true })
   tablet.on('pageerror', (error) => pageErrors.push(String(error)))
   await open(tablet, '/manga/103')
   await tablet.getByRole('heading', { name: '星港郵差', exact: true }).waitFor()
   await noHorizontalOverflow(tablet)
   assert.deepEqual(pageErrors, [])
-  console.log('PASS Mock browser: search aliases and source identity, detail/download/subscribe, shared library and queue, route refresh, desktop, tablet and mobile')
+  console.log('PASS Mock browser: search aliases and source identity, detail/download/subscribe, shared library and queue, route refresh, theme persistence and system mode, desktop, tablet and mobile')
 } finally {
   await browser.close()
 }

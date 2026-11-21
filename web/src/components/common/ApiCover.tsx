@@ -51,7 +51,7 @@ export function ApiCover({ path, title, className, eager = false }: {
   }, [path, ready])
 
   return (
-    <div ref={setElement} className={cn('relative grid place-items-center overflow-hidden bg-[#F1EDFE] text-[#A78BFA]', className)}>
+    <div ref={setElement} className={cn('relative grid place-items-center overflow-hidden bg-accent-soft text-accent', className)}>
       {image && image.path === path ? (
         <img src={image.url} alt={`${title} 封面`} className="absolute inset-0 h-full w-full object-cover" onError={() => setImage(undefined)} />
       ) : (
